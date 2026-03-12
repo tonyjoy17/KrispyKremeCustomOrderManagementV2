@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'BACKEND_URL_PLACEHOLDER/api'
+  apiUrl: 'https://orderflow-backend-uezs.onrender.com/api'
 };
