@@ -16,17 +16,18 @@ const PORT = process.env.PORT || 3000;
 const uploadDir = process.env.UPLOAD_DIR || 'uploads';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-const allowedOrigins = [
-  'http://localhost:4200',
-  process.env.FRONTEND_URL,
-].filter(Boolean);
-
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, health checks)
     if (!origin) return callback(null, true);
-    // Allow explicitly listed origins from env vars
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow localhost for development
+    if (origin.startsWith('http://localhost')) return callback(null, true);
+    // Allow if matches FRONTEND_URL env var
+    if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) return callback(null, true);
+    // Allow any onrender.com subdomain (covers all Render deployments automatically)
+    if (origin.endsWith('.onrender.com')) return callback(null, true);
+    // Allow krispykremesa.com.au subdomains for future custom domain
+    if (origin.endsWith('.krispykremesa.com.au') || origin === 'https://krispykremesa.com.au') return callback(null, true);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
