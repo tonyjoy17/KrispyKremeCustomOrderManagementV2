@@ -1,0 +1,147 @@
+-- =============================================
+-- Retail Order Management System - Database Schema
+-- =============================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- =============================================
+-- STORES TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS stores (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(100) NOT NULL UNIQUE,
+  store_code VARCHAR(20) NOT NULL UNIQUE,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  email VARCHAR(100),
+  phone VARCHAR(20),
+  address TEXT,
+  is_factory BOOLEAN DEFAULT FALSE,
+  is_admin BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================
+-- SYSTEM SETTINGS TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS system_settings (
+  key VARCHAR(100) PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_by UUID REFERENCES stores(id)
+);
+
+-- Default settings
+INSERT INTO system_settings (key, value) VALUES
+  ('email_new_order_enabled', 'true'),
+  ('email_order_updated_enabled', 'true'),
+  ('email_customer_ready_enabled', 'true')
+ON CONFLICT (key) DO NOTHING;
+
+-- =============================================
+-- ORDERS TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS orders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  order_number VARCHAR(20) NOT NULL UNIQUE,
+  store_id UUID NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
+  customer_name VARCHAR(100) NOT NULL,
+  customer_phone VARCHAR(20) NOT NULL,
+  customer_email VARCHAR(100),
+  order_details TEXT NOT NULL,
+  is_paid BOOLEAN NOT NULL DEFAULT FALSE,
+  reference_image_path VARCHAR(255),
+  pickup_store_id UUID NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
+  pickup_date DATE NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'in_progress', 'ready', 'completed', 'cancelled')),
+  email_sent BOOLEAN DEFAULT FALSE,
+  email_sent_at TIMESTAMP WITH TIME ZONE,
+  customer_notified BOOLEAN DEFAULT FALSE,
+  customer_notified_at TIMESTAMP WITH TIME ZONE,
+  created_by UUID REFERENCES stores(id),
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================
+-- ORDER HISTORY TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS order_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  action VARCHAR(50) NOT NULL,
+  description TEXT NOT NULL,
+  changed_by_id UUID REFERENCES stores(id),
+  changed_by_name VARCHAR(100),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================
+-- INDEXES
+-- =============================================
+CREATE INDEX IF NOT EXISTS idx_orders_store_id ON orders(store_id);
+CREATE INDEX IF NOT EXISTS idx_orders_pickup_store_id ON orders(pickup_store_id);
+CREATE INDEX IF NOT EXISTS idx_orders_pickup_date ON orders(pickup_date);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
+CREATE INDEX IF NOT EXISTS idx_stores_username ON stores(username);
+CREATE INDEX IF NOT EXISTS idx_stores_is_factory ON stores(is_factory);
+CREATE INDEX IF NOT EXISTS idx_order_history_order_id ON order_history(order_id);
+
+-- =============================================
+-- AUTO-UPDATE updated_at TRIGGER
+-- =============================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_stores_updated_at ON stores;
+CREATE TRIGGER update_stores_updated_at
+  BEFORE UPDATE ON stores
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
+CREATE TRIGGER update_orders_updated_at
+  BEFORE UPDATE ON orders
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================
+-- ORDER NUMBER SEQUENCE
+-- =============================================
+CREATE SEQUENCE IF NOT EXISTS order_number_seq START 1000;
+
+-- =============================================
+-- SEED DATA
+-- =============================================
+-- Master admin (username: admin, password: admin123)
+INSERT INTO stores (name, store_code, username, password_hash, is_factory, is_admin, is_active)
+VALUES ('Master Admin', 'ADMIN', 'admin', 'admin123', FALSE, TRUE, TRUE)
+ON CONFLICT (username) DO NOTHING;
+
+-- Default factory (username: factory, password: factory123)
+INSERT INTO stores (name, store_code, username, password_hash, is_factory, is_active)
+VALUES ('Factory / Production', 'FACTORY', 'factory', 'factory123', TRUE, TRUE)
+ON CONFLICT (username) DO NOTHING;
+
+-- =============================================
+-- VIEWS
+-- =============================================
+CREATE OR REPLACE VIEW orders_detailed AS
+SELECT o.*, s.name AS store_name, s.store_code,
+  ps.name AS pickup_store_name, ps.store_code AS pickup_store_code
+FROM orders o
+JOIN stores s ON o.store_id = s.id
+JOIN stores ps ON o.pickup_store_id = ps.id;
+
+COMMENT ON TABLE stores IS 'Retail stores, factory and admin accounts';
+COMMENT ON TABLE orders IS 'Customer orders placed by retail stores';
+COMMENT ON TABLE order_history IS 'Audit trail for order changes';
+COMMENT ON TABLE system_settings IS 'Global system configuration';
