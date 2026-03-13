@@ -181,9 +181,9 @@ const getRetailOrders = async (req, res) => {
     const storeId = req.user.storeId;
     const params = [storeId];
     let where = 'WHERE o.store_id=$1';
-    if (filter==='today') where += ' AND o.pickup_date=CURRENT_DATE';
-    else if (filter==='upcoming') where += " AND o.pickup_date>=CURRENT_DATE AND o.status NOT IN ('completed','cancelled')";
-    else if (filter==='past') where += " AND (o.pickup_date<CURRENT_DATE OR o.status IN ('completed','cancelled'))";
+    if (filter==='today') where += ' AND o.pickup_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date';
+    else if (filter==='upcoming') where += " AND o.pickup_date>=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date AND o.status NOT IN ('completed','cancelled')";
+    else if (filter==='past') where += " AND (o.pickup_date<(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date OR o.status IN ('completed','cancelled'))";
     if (date) { params.push(date); where += ` AND o.pickup_date=$${params.length}`; }
     if (search) { params.push(`%${search.toLowerCase()}%`); where += ` AND (LOWER(o.customer_name) LIKE $${params.length} OR o.customer_phone LIKE $${params.length})`; }
     const countResult = await query(`SELECT COUNT(*) FROM orders o ${where}`, params);
@@ -202,14 +202,14 @@ const getRetailDashboard = async (req, res) => {
   try {
     const storeId = req.user.storeId;
     const [t,u,tot,w] = await Promise.all([
-      query(`SELECT COUNT(*) FROM orders WHERE store_id=$1 AND pickup_date=CURRENT_DATE AND status NOT IN ('completed','cancelled')`, [storeId]),
-      query(`SELECT COUNT(*) FROM orders WHERE store_id=$1 AND pickup_date>CURRENT_DATE AND status NOT IN ('completed','cancelled')`, [storeId]),
+      query(`SELECT COUNT(*) FROM orders WHERE store_id=$1 AND pickup_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date AND status NOT IN ('completed','cancelled')`, [storeId]),
+      query(`SELECT COUNT(*) FROM orders WHERE store_id=$1 AND pickup_date>(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date AND status NOT IN ('completed','cancelled')`, [storeId]),
       query(`SELECT COUNT(*) FROM orders WHERE store_id=$1`, [storeId]),
-      query(`SELECT COUNT(*) FROM orders WHERE store_id=$1 AND created_at >= date_trunc('week', CURRENT_DATE + INTERVAL '1 day') - INTERVAL '1 day' AND created_at < date_trunc('week', CURRENT_DATE + INTERVAL '1 day') - INTERVAL '1 day' + INTERVAL '7 days'`, [storeId]),
+      query(`SELECT COUNT(*) FROM orders WHERE store_id=$1 AND created_at >= date_trunc('week', (CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date + INTERVAL '1 day') - INTERVAL '1 day' AND created_at < date_trunc('week', (CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date + INTERVAL '1 day') - INTERVAL '1 day' + INTERVAL '7 days'`, [storeId]),
     ]);
     const todayOrders = await query(
       `SELECT o.*,ps.name as pickup_store_name FROM orders o JOIN stores ps ON o.pickup_store_id=ps.id
-       WHERE o.store_id=$1 AND o.pickup_date=CURRENT_DATE AND o.status NOT IN ('completed','cancelled') ORDER BY o.created_at ASC`, [storeId]
+       WHERE o.store_id=$1 AND o.pickup_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date AND o.status NOT IN ('completed','cancelled') ORDER BY o.created_at ASC`, [storeId]
     );
     res.json({ stats: { todayPickups: parseInt(t.rows[0].count), upcoming: parseInt(u.rows[0].count), total: parseInt(tot.rows[0].count), thisWeek: parseInt(w.rows[0].count) }, todayOrders: todayOrders.rows });
   } catch (error) { res.status(500).json({ message: 'Failed to fetch dashboard' }); }
@@ -219,15 +219,15 @@ const getRetailDashboard = async (req, res) => {
 const getFactoryDashboard = async (req, res) => {
   try {
     const [t,u,tot,w] = await Promise.all([
-      query(`SELECT COUNT(*) FROM orders WHERE pickup_date=CURRENT_DATE+INTERVAL '1 day' AND status NOT IN ('completed','cancelled')`),
-      query(`SELECT COUNT(*) FROM orders WHERE pickup_date>CURRENT_DATE+INTERVAL '1 day' AND status NOT IN ('completed','cancelled')`),
+      query(`SELECT COUNT(*) FROM orders WHERE pickup_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date+INTERVAL '1 day' AND status NOT IN ('completed','cancelled')`),
+      query(`SELECT COUNT(*) FROM orders WHERE pickup_date>(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date+INTERVAL '1 day' AND status NOT IN ('completed','cancelled')`),
       query(`SELECT COUNT(*) FROM orders`),
-      query(`SELECT COUNT(*) FROM orders WHERE created_at >= date_trunc('week', CURRENT_DATE + INTERVAL '1 day') - INTERVAL '1 day' AND created_at < date_trunc('week', CURRENT_DATE + INTERVAL '1 day') - INTERVAL '1 day' + INTERVAL '7 days'`),
+      query(`SELECT COUNT(*) FROM orders WHERE created_at >= date_trunc('week', (CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date + INTERVAL '1 day') - INTERVAL '1 day' AND created_at < date_trunc('week', (CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date + INTERVAL '1 day') - INTERVAL '1 day' + INTERVAL '7 days'`),
     ]);
     const tomorrowOrders = await query(
       `SELECT o.*,s.name as store_name,ps.name as pickup_store_name,ps.store_code as pickup_store_code
        FROM orders o JOIN stores s ON o.store_id=s.id JOIN stores ps ON o.pickup_store_id=ps.id
-       WHERE o.pickup_date=CURRENT_DATE+INTERVAL '1 day' AND o.status NOT IN ('completed','cancelled')
+       WHERE o.pickup_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date+INTERVAL '1 day' AND o.status NOT IN ('completed','cancelled')
        ORDER BY o.pickup_store_id,o.created_at ASC`
     );
     res.json({ stats: { tomorrowPickups: parseInt(t.rows[0].count), upcoming: parseInt(u.rows[0].count), total: parseInt(tot.rows[0].count), thisWeek: parseInt(w.rows[0].count) }, tomorrowOrders: tomorrowOrders.rows });
@@ -242,9 +242,9 @@ const getAllOrders = async (req, res) => {
     const params = [];
     let where = 'WHERE 1=1';
     if (storeId) { params.push(storeId); where += ` AND o.store_id=$${params.length}`; }
-    if (filter==='tomorrow') where += ` AND o.pickup_date=CURRENT_DATE+INTERVAL '1 day'`;
-    else if (filter==='upcoming') where += ` AND o.pickup_date>=CURRENT_DATE AND o.status NOT IN ('completed','cancelled')`;
-    else if (filter==='past') where += ` AND (o.pickup_date<CURRENT_DATE OR o.status IN ('completed','cancelled'))`;
+    if (filter==='tomorrow') where += ` AND o.pickup_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date+INTERVAL '1 day'`;
+    else if (filter==='upcoming') where += ` AND o.pickup_date>=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date AND o.status NOT IN ('completed','cancelled')`;
+    else if (filter==='past') where += ` AND (o.pickup_date<(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date OR o.status IN ('completed','cancelled'))`;
     if (date) { params.push(date); where += ` AND o.pickup_date=$${params.length}`; }
     if (search) { params.push(`%${search.toLowerCase()}%`); where += ` AND (LOWER(o.customer_name) LIKE $${params.length} OR o.customer_phone LIKE $${params.length})`; }
     const countResult = await query(`SELECT COUNT(*) FROM orders o ${where}`, params);
