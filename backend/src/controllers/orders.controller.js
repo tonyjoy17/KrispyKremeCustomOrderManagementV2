@@ -181,7 +181,7 @@ const getRetailOrders = async (req, res) => {
     const storeId = req.user.storeId;
     const params = [storeId];
     let where = 'WHERE o.store_id=$1';
-    if (filter==='today') where += ' AND o.pickup_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date';
+    if (filter==='today') where += " AND o.pickup_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date";
     else if (filter==='upcoming') where += " AND o.pickup_date>=(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date AND o.status NOT IN ('completed','cancelled')";
     else if (filter==='past') where += " AND (o.pickup_date<(CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Adelaide')::date OR o.status IN ('completed','cancelled'))";
     if (date) { params.push(date); where += ` AND o.pickup_date=$${params.length}`; }
