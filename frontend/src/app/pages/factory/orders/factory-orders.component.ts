@@ -244,7 +244,7 @@ export class FactoryOrdersComponent implements OnInit {
   }
 
   viewOrder(id: string | undefined) {
-    if (id) this.router.navigate(['/factory/orders', id]);
+    if (id) this.router.navigate([this.router.url.startsWith('/admin') ? '/admin/orders' : '/factory/orders', id]);
   }
 
   isToday(date: string): boolean {

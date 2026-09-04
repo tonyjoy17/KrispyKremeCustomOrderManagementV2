@@ -66,7 +66,7 @@ export interface SystemSettings {
 export interface CreateOrderRequest {
   customerName: string; customerPhone: string; customerEmail?: string;
   orderDetails: string; isPaid: boolean; pickupStoreId: string;
-  pickupDate: string; referenceImage?: File;
+  pickupDate: string; referenceImage?: File; orderStoreId?: string;
 }
 
 export interface OrdersResponse { orders: Order[]; total: number; page: number; limit: number; }

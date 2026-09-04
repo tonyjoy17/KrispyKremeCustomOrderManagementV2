@@ -48,13 +48,23 @@ const applyOrderFilters = (request, { filter, storeId, search, date }, factory =
 const createOrder = async (req, res) => {
   let uploadedImagePath = null;
   try {
-    const { customerName, customerPhone, customerEmail, orderDetails, isPaid, pickupStoreId, pickupDate } = req.body;
+    const { customerName, customerPhone, customerEmail, orderDetails, isPaid, pickupStoreId, pickupDate, orderStoreId } = req.body;
     if (!customerName || !customerPhone || !orderDetails || !pickupStoreId || !pickupDate) return res.status(400).json({ message: 'Missing required fields' });
+    let orderStoreIdValue = req.user.storeId;
+    if (req.user.isAdmin) {
+      if (!orderStoreId) return res.status(400).json({ message: 'Order store is required for administrators' });
+      const storeResult = await supabase.from('stores').select('id')
+        .eq('id', orderStoreId).eq('is_active', true).eq('is_factory', false)
+        .or('is_admin.eq.false,is_admin.is.null').maybeSingle();
+      if (storeResult.error) throw storeResult.error;
+      if (!storeResult.data) return res.status(400).json({ message: 'Select an active retail store' });
+      orderStoreIdValue = storeResult.data.id;
+    }
     const numberResult = await supabase.rpc('next_order_number');
     if (numberResult.error) throw numberResult.error;
-    uploadedImagePath = await uploadOrderImage(req.file, req.user.storeId);
+    uploadedImagePath = await uploadOrderImage(req.file, orderStoreIdValue);
     const { data: order, error } = await supabase.from('orders').insert({
-      order_number: numberResult.data, store_id: req.user.storeId, customer_name: customerName.trim(),
+      order_number: numberResult.data, store_id: orderStoreIdValue, customer_name: customerName.trim(),
       customer_phone: customerPhone.trim(), customer_email: customerEmail?.trim() || null,
       order_details: orderDetails.trim(), is_paid: isPaid === true || isPaid === 'true' || isPaid === 'yes',
       reference_image_path: uploadedImagePath, pickup_store_id: pickupStoreId,

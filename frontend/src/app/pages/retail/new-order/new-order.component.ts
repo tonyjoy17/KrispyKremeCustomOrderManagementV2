@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { OrdersService } from '../../../services/orders.service';
 import { StoresService } from '../../../services/stores.service';
+import { AuthService } from '../../../services/auth.service';
 import { CreateOrderRequest } from '../../../models';
 
 @Component({
@@ -33,13 +34,28 @@ import { CreateOrderRequest } from '../../../models';
         </div>
         <div class="success-actions">
           <button class="btn-secondary" (click)="resetForm()">New Order</button>
-          <button class="btn-primary" (click)="router.navigate(['/retail/dashboard'])">Dashboard</button>
+          <button class="btn-primary" (click)="router.navigate([isAdmin ? '/admin/orders' : '/retail/dashboard'])">{{ isAdmin ? 'All Orders' : 'Dashboard' }}</button>
         </div>
       </div>
 
       <!-- Order Form -->
       <div *ngIf="!success" class="form-card">
         <form (ngSubmit)="submitOrder()">
+
+          <div class="form-section" *ngIf="isAdmin">
+            <div class="section-title">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2H4a1 1 0 110-2V4zm3 1h2v2H7V5zm4 0h2v2h-2V5z" clip-rule="evenodd"/></svg>
+              Retail Store
+            </div>
+            <div class="field" [class.has-error]="submitted && !form.orderStoreId">
+              <label>Create order for <span class="req">*</span></label>
+              <select [(ngModel)]="form.orderStoreId" name="orderStoreId" [disabled]="loading || !stores.length">
+                <option value="">Select retail store...</option>
+                <option *ngFor="let s of stores" [value]="s.id">{{ s.name }} ({{ s.store_code }})</option>
+              </select>
+              <span class="error-text" *ngIf="submitted && !form.orderStoreId">Required</span>
+            </div>
+          </div>
 
           <!-- Customer Section -->
           <div class="form-section">
@@ -286,8 +302,11 @@ export class NewOrderComponent implements OnInit {
   constructor(
     public router: Router,
     private ordersService: OrdersService,
-    private storesService: StoresService
+    private storesService: StoresService,
+    private authService: AuthService
   ) {}
+
+  get isAdmin() { return this.authService.isAdmin; }
 
   ngOnInit() {
     this.storesService.getDropdown().subscribe({
@@ -323,7 +342,7 @@ export class NewOrderComponent implements OnInit {
     this.submitted = true;
     this.error = '';
 
-    if (!this.form.customerName || !this.form.customerPhone || !this.form.orderDetails
+    if ((this.isAdmin && !this.form.orderStoreId) || !this.form.customerName || !this.form.customerPhone || !this.form.orderDetails
       || !this.form.pickupStoreId || !this.form.pickupDate || this.form.isPaid === null || this.form.isPaid === undefined) {
       this.error = 'Please fill in all required fields';
       return;
@@ -339,6 +358,7 @@ export class NewOrderComponent implements OnInit {
       pickupStoreId: this.form.pickupStoreId!,
       pickupDate: this.form.pickupDate!,
       referenceImage: this.imageFile || undefined,
+      orderStoreId: this.form.orderStoreId,
     };
 
     this.ordersService.createOrder(request).subscribe({

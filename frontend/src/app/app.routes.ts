@@ -12,6 +12,9 @@ export const routes: Routes = [
     canActivate: [adminGuard],
     children: [
       { path: '', redirectTo: 'stores', pathMatch: 'full' },
+      { path: 'new-order', loadComponent: () => import('./pages/retail/new-order/new-order.component').then(m => m.NewOrderComponent) },
+      { path: 'orders', loadComponent: () => import('./pages/factory/orders/factory-orders.component').then(m => m.FactoryOrdersComponent) },
+      { path: 'orders/:id', loadComponent: () => import('./pages/order-detail/order-detail.component').then(m => m.OrderDetailComponent) },
       { path: 'stores', loadComponent: () => import('./pages/admin/admin-stores.component').then(m => m.AdminStoresComponent) },
       { path: 'settings', loadComponent: () => import('./pages/admin/admin-settings.component').then(m => m.AdminSettingsComponent) },
       { path: 'activity', loadComponent: () => import('./pages/admin/admin-activity.component').then(m => m.AdminActivityComponent) },

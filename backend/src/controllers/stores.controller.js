@@ -13,7 +13,7 @@ const getAllStores = async (_req, res) => {
   try {
     const { data, error } = await supabase.from('stores')
       .select('id,name,store_code,username,email,phone,address,is_factory,is_active,created_at')
-      .or('is_admin.eq.false,is_admin.is.null').order('name');
+      .eq('is_factory', false).or('is_admin.eq.false,is_admin.is.null').order('name');
     if (error) throw error;
     res.json(data);
   } catch { res.status(500).json({ message: 'Failed to fetch stores' }); }

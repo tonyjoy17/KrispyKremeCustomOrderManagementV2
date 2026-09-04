@@ -21,6 +21,14 @@ import { AuthService } from '../../services/auth.service';
           </div>
         </div>
         <nav class="sidebar-nav">
+          <a routerLink="/admin/new-order" routerLinkActive="active" class="nav-item">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 012 0v7h7a1 1 0 110 2h-7v7a1 1 0 11-2 0v-7H2a1 1 0 110-2h7V2z"/></svg>
+            Create Order
+          </a>
+          <a routerLink="/admin/orders" routerLinkActive="active" class="nav-item">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm2 4a1 1 0 000 2h8a1 1 0 100-2H6zm0 4a1 1 0 100 2h5a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+            All Orders
+          </a>
           <a routerLink="/admin/stores" routerLinkActive="active" class="nav-item">
             <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/></svg>
             Manage Stores

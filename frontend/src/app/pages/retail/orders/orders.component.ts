@@ -93,6 +93,7 @@ import { Order } from '../../../models';
     .spinner { width:36px; height:36px; border:3px solid #e2e8f0; border-top-color:#2563eb; border-radius:50%; animation:spin 0.8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .empty { display:flex; flex-direction:column; align-items:center; gap:12px; padding:60px; color:#94a3b8; }
+    .empty svg { width:48px; height:48px; flex:0 0 48px; display:block; }
     .empty p { margin:0; font-size:14px; }
     .orders-list { display:flex; flex-direction:column; gap:8px; }
     .order-row { display:flex; align-items:center; gap:16px; background:white; border:1px solid #e2e8f0; border-radius:12px; padding:16px 20px; cursor:pointer; transition:all 0.15s; }
