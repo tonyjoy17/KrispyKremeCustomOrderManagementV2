@@ -20,11 +20,11 @@ git push -u origin main
 
 ---
 
-## Step 2 — Create PostgreSQL Database on Render
+## Step 2 — Create a Supabase database
 
-1. Render dashboard → **New +** → **PostgreSQL**
-2. Name: `orderflow-db` | Plan: **Free** → Create
-3. Once created, go to the database page and copy the **Internal Database URL**
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open the **SQL Editor**, paste `backend/src/config/schema.sql`, and run it.
+3. Open **Project Settings → API Keys** and copy the project URL and secret key.
 
 ---
 
@@ -44,7 +44,8 @@ git push -u origin main
 
 | Key | Value |
 |-----|-------|
-| `DATABASE_URL` | (paste Internal Database URL from Step 2) |
+| `SUPABASE_URL` | your Supabase project URL |
+| `SUPABASE_SECRET_KEY` | your backend-only `sb_secret_...` key |
 | `NODE_ENV` | `production` |
 | `JWT_SECRET` | (any long random string, e.g. `orderflow_super_secret_2024_xyz`) |
 | `JWT_EXPIRES_IN` | `8h` |
@@ -64,27 +65,13 @@ git push -u origin main
 
 ## Step 4 — Run Database Schema
 
-Once backend is deployed, open the Render **Shell** tab for your backend service and run:
+Once the backend is deployed, open its Render **Shell** tab and verify the API connection:
 
 ```bash
-node -e "
-const { Pool } = require('pg');
-const fs = require('fs');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-const sql = fs.readFileSync('src/config/schema.sql', 'utf8');
-pool.query(sql).then(() => { console.log('Schema created!'); process.exit(0); }).catch(e => { console.error(e.message); process.exit(1); });
-"
+npm run db:check
 ```
 
-Then create your factory admin user:
-
-```bash
-node -e "
-const { Pool } = require('pg');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-pool.query(\"INSERT INTO stores (name, store_code, username, password_hash, is_factory, is_active) VALUES ('Factory Admin', 'FACTORY', 'factory', 'factory123', true, true) ON CONFLICT DO NOTHING\").then(() => { console.log('Admin created! Login: factory / factory123'); process.exit(0); }).catch(e => { console.error(e.message); process.exit(1); });
-"
-```
+The schema itself is installed in the Supabase SQL Editor in Step 2.
 
 ---
 

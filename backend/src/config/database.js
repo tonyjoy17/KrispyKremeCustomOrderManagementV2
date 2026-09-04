@@ -1,18 +1,16 @@
-const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 
-if (!process.env.SUPABASE_DB_URL) throw new Error('SUPABASE_DB_URL is required');
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Supabase is PostgreSQL. Its transaction pooler preserves the app's existing
-// multi-table transactions and audit-history behavior.
-const pool = new Pool({
-  connectionString: process.env.SUPABASE_DB_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 10,
+if (!supabaseUrl || !supabaseSecretKey) {
+  throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required');
+}
+
+// This privileged client must only be used by the backend. Never expose the
+// secret key in Angular or send it to a browser.
+const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
 });
 
-pool.on('error', (error) => console.error('Unexpected Supabase pool error', error));
-
-const query = (text, params) => pool.query(text, params);
-const getClient = () => pool.connect();
-
-module.exports = { query, getClient, pool };
+module.exports = { supabase };

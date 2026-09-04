@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
-const { query } = require('./database');
+const { supabase } = require('./database');
+const APP_TIME_ZONE = process.env.APP_TIME_ZONE || 'Australia/Adelaide';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -10,13 +11,14 @@ const transporter = nodemailer.createTransport({
 
 const getSetting = async (key) => {
   try {
-    const result = await query('SELECT value FROM system_settings WHERE key = $1', [key]);
-    return result.rows[0]?.value === 'true';
+    const { data, error } = await supabase.from('system_settings').select('value').eq('key', key).maybeSingle();
+    if (error) throw error;
+    return data?.value === 'true';
   } catch { return true; }
 };
 
 const formatDate = (date) => new Date(date).toLocaleDateString('en-AU', {
-  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: APP_TIME_ZONE
 });
 
 // Email to factory on new order

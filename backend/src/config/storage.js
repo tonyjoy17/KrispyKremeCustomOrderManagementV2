@@ -1,11 +1,8 @@
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const { createClient } = require('@supabase/supabase-js');
+const { supabase } = require('./database');
 
 const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'order-images';
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
 
 const objectPathFromValue = (value) => {
   if (!value) return null;

@@ -1,114 +1,103 @@
-const { query } = require('../config/database');
+const { supabase } = require('../config/database');
 
-// Get all system settings
-const getSettings = async (req, res) => {
+const getSettings = async (_req, res) => {
   try {
-    const result = await query('SELECT key, value, updated_at FROM system_settings ORDER BY key');
-    const settings = {};
-    result.rows.forEach(r => settings[r.key] = { value: r.value, updated_at: r.updated_at });
-    res.json(settings);
-  } catch (error) { res.status(500).json({ message: 'Failed to fetch settings' }); }
+    const { data, error } = await supabase.from('system_settings').select('key,value,updated_at').order('key');
+    if (error) throw error;
+    res.json(Object.fromEntries(data.map(row => [row.key, { value: row.value, updated_at: row.updated_at }])));
+  } catch { res.status(500).json({ message: 'Failed to fetch settings' }); }
 };
 
-// Update a setting
 const updateSetting = async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;
-    const allowed = ['email_new_order_enabled','email_order_updated_enabled','email_customer_ready_enabled'];
+    const allowed = ['email_new_order_enabled', 'email_order_updated_enabled', 'email_customer_ready_enabled'];
     if (!allowed.includes(key)) return res.status(400).json({ message: 'Invalid setting key' });
-    await query(
-      'UPDATE system_settings SET value=$1, updated_at=NOW(), updated_by=$2 WHERE key=$3',
-      [value, req.user.storeId, key]
-    );
+    const { error } = await supabase.from('system_settings').update({ value, updated_at: new Date().toISOString(), updated_by: req.user.storeId }).eq('key', key);
+    if (error) throw error;
     res.json({ message: 'Setting updated', key, value });
-  } catch (error) { res.status(500).json({ message: 'Failed to update setting' }); }
+  } catch { res.status(500).json({ message: 'Failed to update setting' }); }
 };
 
-// Get all stores (admin)
-const getAllStores = async (req, res) => {
+const getAllStores = async (_req, res) => {
   try {
-    const result = await query(
-      `SELECT id, name, store_code, username, email, phone, address, is_factory, is_admin, is_active, created_at
-       FROM stores ORDER BY is_admin DESC, is_factory DESC, name ASC`
-    );
-    res.json(result.rows);
-  } catch (error) { res.status(500).json({ message: 'Failed to fetch stores' }); }
+    const { data, error } = await supabase.from('stores')
+      .select('id,name,store_code,username,email,phone,address,is_factory,is_admin,is_active,created_at')
+      .order('is_admin', { ascending: false }).order('is_factory', { ascending: false }).order('name');
+    if (error) throw error;
+    res.json(data);
+  } catch { res.status(500).json({ message: 'Failed to fetch stores' }); }
 };
 
-// Register store (admin)
 const registerStore = async (req, res) => {
   try {
     const { name, storeCode, username, password, email, phone, address, isFactory } = req.body;
     if (!name || !storeCode || !username || !password) return res.status(400).json({ message: 'Name, code, username and password required' });
-    const existing = await query('SELECT id FROM stores WHERE username=$1 OR store_code=$2 OR name=$3',
-      [username.trim().toLowerCase(), storeCode.trim().toUpperCase(), name.trim()]);
-    if (existing.rows.length > 0) return res.status(409).json({ message: 'Username, code or name already exists' });
-    const result = await query(
-      `INSERT INTO stores (name,store_code,username,password_hash,email,phone,address,is_factory)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,name,store_code,username,email,is_factory,is_active,created_at`,
-      [name.trim(), storeCode.trim().toUpperCase(), username.trim().toLowerCase(), password,
-       email?.trim()||null, phone?.trim()||null, address?.trim()||null, isFactory===true||isFactory==='true']
-    );
-    res.status(201).json({ message: 'Store registered', store: result.rows[0] });
-  } catch (error) { res.status(500).json({ message: 'Failed to register store' }); }
+    const record = {
+      name: name.trim(), store_code: storeCode.trim().toUpperCase(), username: username.trim().toLowerCase(),
+      password_hash: password, email: email?.trim() || null, phone: phone?.trim() || null,
+      address: address?.trim() || null, is_factory: isFactory === true || isFactory === 'true',
+    };
+    const { data, error } = await supabase.from('stores').insert(record)
+      .select('id,name,store_code,username,email,is_factory,is_active,created_at').single();
+    if (error?.code === '23505') return res.status(409).json({ message: 'Username, code or name already exists' });
+    if (error) throw error;
+    res.status(201).json({ message: 'Store registered', store: data });
+  } catch (error) { console.error(error); res.status(500).json({ message: 'Failed to register store' }); }
 };
 
-// Toggle store active
 const toggleStore = async (req, res) => {
   try {
-    const { id } = req.params;
-    const store = await query('SELECT * FROM stores WHERE id=$1', [id]);
-    if (store.rows.length === 0) return res.status(404).json({ message: 'Store not found' });
-    if (store.rows[0].is_admin) return res.status(400).json({ message: 'Cannot deactivate admin account' });
-    const result = await query('UPDATE stores SET is_active=NOT is_active WHERE id=$1 RETURNING id,name,is_active', [id]);
-    res.json({ message: `Store ${result.rows[0].is_active?'activated':'deactivated'}`, store: result.rows[0] });
-  } catch (error) { res.status(500).json({ message: 'Failed to toggle store' }); }
+    const { data: store, error } = await supabase.from('stores').select('id,name,is_active,is_admin').eq('id', req.params.id).maybeSingle();
+    if (error) throw error;
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+    if (store.is_admin) return res.status(400).json({ message: 'Cannot deactivate admin account' });
+    const result = await supabase.from('stores').update({ is_active: !store.is_active }).eq('id', store.id).select('id,name,is_active').single();
+    if (result.error) throw result.error;
+    res.json({ message: `Store ${result.data.is_active ? 'activated' : 'deactivated'}`, store: result.data });
+  } catch { res.status(500).json({ message: 'Failed to toggle store' }); }
 };
 
-// Delete store (admin)
 const deleteStore = async (req, res) => {
   try {
-    const { id } = req.params;
-    const store = await query('SELECT * FROM stores WHERE id=$1', [id]);
-    if (store.rows.length === 0) return res.status(404).json({ message: 'Store not found' });
-    if (store.rows[0].is_admin || store.rows[0].is_factory) return res.status(400).json({ message: 'Cannot delete admin or factory accounts' });
-    const orderCount = await query('SELECT COUNT(*) FROM orders WHERE store_id=$1', [id]);
-    if (parseInt(orderCount.rows[0].count) > 0) return res.status(400).json({ message: `Cannot delete — store has ${orderCount.rows[0].count} orders. Deactivate instead.` });
-    await query('DELETE FROM stores WHERE id=$1', [id]);
+    const { data: store, error } = await supabase.from('stores').select('id,is_admin,is_factory').eq('id', req.params.id).maybeSingle();
+    if (error) throw error;
+    if (!store) return res.status(404).json({ message: 'Store not found' });
+    if (store.is_admin || store.is_factory) return res.status(400).json({ message: 'Cannot delete admin or factory accounts' });
+    const countResult = await supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', store.id);
+    if (countResult.error) throw countResult.error;
+    if (countResult.count > 0) return res.status(400).json({ message: `Cannot delete — store has ${countResult.count} orders. Deactivate instead.` });
+    const deletion = await supabase.from('stores').delete().eq('id', store.id);
+    if (deletion.error) throw deletion.error;
     res.json({ message: 'Store deleted' });
-  } catch (error) { res.status(500).json({ message: 'Failed to delete store' }); }
+  } catch { res.status(500).json({ message: 'Failed to delete store' }); }
 };
 
-// Reset any password (admin)
 const resetPassword = async (req, res) => {
   try {
-    const { id } = req.params;
     const { newPassword } = req.body;
     if (!newPassword || newPassword.length < 4) return res.status(400).json({ message: 'Password must be at least 4 characters' });
-    const result = await query('UPDATE stores SET password_hash=$1 WHERE id=$2 RETURNING id,name', [newPassword, id]);
-    if (result.rows.length === 0) return res.status(404).json({ message: 'Store not found' });
+    const { data, error } = await supabase.from('stores').update({ password_hash: newPassword }).eq('id', req.params.id).select('id,name').maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ message: 'Store not found' });
     res.json({ message: 'Password reset successfully' });
-  } catch (error) { res.status(500).json({ message: 'Failed to reset password' }); }
+  } catch { res.status(500).json({ message: 'Failed to reset password' }); }
 };
 
-// Get activity log
 const getActivityLog = async (req, res) => {
   try {
-    const { page=1, limit=50, orderId } = req.query;
-    const offset = (page-1)*limit;
-    const params = [];
-    let where = 'WHERE 1=1';
-    if (orderId) { params.push(orderId); where += ` AND h.order_id=$${params.length}`; }
-    const result = await query(
-      `SELECT h.*, o.order_number, o.customer_name
-       FROM order_history h JOIN orders o ON h.order_id=o.id
-       ${where} ORDER BY h.created_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`,
-      [...params, limit, offset]
-    );
-    const count = await query(`SELECT COUNT(*) FROM order_history h ${where}`, params);
-    res.json({ logs: result.rows, total: parseInt(count.rows[0].count) });
-  } catch (error) { res.status(500).json({ message: 'Failed to fetch activity log' }); }
+    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
+    let request = supabase.from('order_history')
+      .select('*,orders!inner(order_number,customer_name)', { count: 'exact' })
+      .order('created_at', { ascending: false }).range((page - 1) * limit, page * limit - 1);
+    if (req.query.orderId) request = request.eq('order_id', req.query.orderId);
+    const { data, error, count } = await request;
+    if (error) throw error;
+    const logs = data.map(({ orders, ...log }) => ({ ...log, order_number: orders.order_number, customer_name: orders.customer_name }));
+    res.json({ logs, total: count || 0 });
+  } catch (error) { console.error(error); res.status(500).json({ message: 'Failed to fetch activity log' }); }
 };
 
 module.exports = { getSettings, updateSetting, getAllStores, registerStore, toggleStore, deleteStore, resetPassword, getActivityLog };

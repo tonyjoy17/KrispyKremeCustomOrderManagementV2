@@ -2,13 +2,14 @@
 -- Retail Order Management System - Database Schema
 -- =============================================
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- pgcrypto and gen_random_uuid() are available on Supabase.
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- =============================================
 -- STORES TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS stores (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(100) NOT NULL UNIQUE,
   store_code VARCHAR(20) NOT NULL UNIQUE,
   username VARCHAR(50) NOT NULL UNIQUE,
@@ -44,7 +45,7 @@ ON CONFLICT (key) DO NOTHING;
 -- ORDERS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS orders (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_number VARCHAR(20) NOT NULL UNIQUE,
   store_id UUID NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
   customer_name VARCHAR(100) NOT NULL,
@@ -91,7 +92,7 @@ END $$;
 -- ORDER HISTORY TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS order_history (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   action VARCHAR(50) NOT NULL,
   description TEXT NOT NULL,
@@ -138,6 +139,18 @@ CREATE TRIGGER update_orders_updated_at
 -- =============================================
 CREATE SEQUENCE IF NOT EXISTS order_number_seq START 1000;
 
+-- PostgREST RPC used by the backend because sequence access is not available
+-- through table operations.
+CREATE OR REPLACE FUNCTION next_order_number()
+RETURNS TEXT
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT 'ORD-' || to_char(NOW() AT TIME ZONE 'Australia/Adelaide', 'YYYYMM') || '-' ||
+    lpad(nextval('order_number_seq')::text, 4, '0');
+$$;
+
 -- =============================================
 -- SEED DATA
 -- =============================================
@@ -160,6 +173,33 @@ SELECT o.*, s.name AS store_name, s.store_code,
 FROM orders o
 JOIN stores s ON o.store_id = s.id
 JOIN stores ps ON o.pickup_store_id = ps.id;
+
+-- The application authorizes access in Express and connects as the database
+-- owner. Prevent Supabase's public Data API roles from accessing these tables.
+ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_history ENABLE ROW LEVEL SECURITY;
+
+REVOKE EXECUTE ON FUNCTION next_order_number() FROM PUBLIC;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON TABLE stores, system_settings, orders, order_history, orders_detailed FROM anon;
+    REVOKE ALL ON SEQUENCE order_number_seq FROM anon;
+    REVOKE EXECUTE ON FUNCTION next_order_number() FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE stores, system_settings, orders, order_history, orders_detailed FROM authenticated;
+    REVOKE ALL ON SEQUENCE order_number_seq FROM authenticated;
+    REVOKE EXECUTE ON FUNCTION next_order_number() FROM authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT EXECUTE ON FUNCTION next_order_number() TO service_role;
+  END IF;
+END
+$$;
 
 COMMENT ON TABLE stores IS 'Retail stores, factory and admin accounts';
 COMMENT ON TABLE orders IS 'Customer orders placed by retail stores';

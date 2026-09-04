@@ -5,7 +5,7 @@ A full-stack web application for managing orders across 7 retail stores and 1 pr
 ## Tech Stack
 - **Frontend**: Angular 17 + TypeScript (standalone components)
 - **Backend**: Node.js + Express
-- **Database**: PostgreSQL
+- **Database**: Supabase (PostgreSQL)
 - **Auth**: JWT
 - **Email**: Nodemailer (SMTP)
 
@@ -74,6 +74,79 @@ orderflow/
                     ├── orders/factory-orders.component.ts
                     └── stores/stores.component.ts
 ```
+
+---
+
+## Setup Instructions
+
+### Step 1 — Supabase database
+
+Create a Supabase project, copy its Transaction pooler URI, and follow [SUPABASE.md](SUPABASE.md). Then run:
+
+```bash
+# Configure the Supabase API client
+cd backend
+npm install
+cp .env.example .env
+# Set SUPABASE_URL and SUPABASE_SECRET_KEY in .env
+
+# Verify the connection
+npm run db:check
+```
+
+### Step 2 — Backend
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+```
+
+Edit `.env` with your values:
+
+```env
+PORT=3000
+SUPABASE_URL=https://PROJECT_REF.supabase.co
+SUPABASE_SECRET_KEY=sb_secret_your_secret_key
+
+JWT_SECRET=change_this_to_a_long_random_string
+JWT_EXPIRES_IN=8h
+
+FACTORY_EMAIL=factory@yourcompany.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+```
+
+> **Gmail tip**: Use an App Password (not your regular password). Go to Google Account → Security → 2-Step Verification → App passwords.
+
+```bash
+npm run dev     # starts on http://localhost:3000
+```
+
+### Step 3 — Frontend
+
+```bash
+cd frontend
+npm install
+ng serve        # starts on http://localhost:4200
+```
+
+Open **http://localhost:4200**
+
+---
+
+## Default Login
+
+| Role    | Username  | Password     |
+|---------|-----------|--------------|
+| Factory | `factory` | `factory123` |
+
+> ⚠️ Change the factory password immediately after first login via the database or by adding a change-password feature.
+
+Retail store accounts are created by the Factory admin under **Manage Stores**.
 
 ---
 
