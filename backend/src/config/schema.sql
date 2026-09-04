@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_email VARCHAR(100),
   order_details TEXT NOT NULL,
   is_paid BOOLEAN NOT NULL DEFAULT FALSE,
-  reference_image_path VARCHAR(255),
+  reference_image_path TEXT,
   pickup_store_id UUID NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
   pickup_date DATE NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'pending'
@@ -66,6 +66,26 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Upgrade an existing OrderFlow database without removing its data.
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_notified BOOLEAN DEFAULT FALSE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_notified_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE orders ALTER COLUMN reference_image_path TYPE TEXT;
+
+-- Compatibility with the earlier OrderFlow schema. Keep any existing values,
+-- while allowing this version (which has no total_dozen field) to create orders.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'orders'
+      AND column_name = 'total_dozen'
+  ) THEN
+    ALTER TABLE public.orders ALTER COLUMN total_dozen SET DEFAULT 0;
+  END IF;
+END $$;
 
 -- =============================================
 -- ORDER HISTORY TABLE
@@ -145,3 +165,16 @@ COMMENT ON TABLE stores IS 'Retail stores, factory and admin accounts';
 COMMENT ON TABLE orders IS 'Customer orders placed by retail stores';
 COMMENT ON TABLE order_history IS 'Audit trail for order changes';
 COMMENT ON TABLE system_settings IS 'Global system configuration';
+
+ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
+
+-- Private bucket: authorized API responses provide one-hour signed URLs.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('order-images', 'order-images', FALSE, 5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+ON CONFLICT (id) DO UPDATE SET public=EXCLUDED.public,
+  file_size_limit=EXCLUDED.file_size_limit,
+  allowed_mime_types=EXCLUDED.allowed_mime_types;

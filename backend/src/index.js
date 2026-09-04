@@ -1,7 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth.routes');
@@ -12,9 +10,6 @@ const { scheduleCleanup } = require('./config/imageCleanup');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-const uploadDir = process.env.UPLOAD_DIR || 'uploads';
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -35,7 +30,6 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, '..', uploadDir)));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', ordersRoutes);

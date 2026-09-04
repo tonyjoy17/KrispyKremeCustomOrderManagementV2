@@ -1,7 +1,6 @@
 const { query, getClient } = require('../config/database');
 const { sendOrderEmail, sendOrderUpdatedEmail, sendCustomerReadyEmail } = require('../config/email');
-const path = require('path');
-const fs = require('fs');
+const { uploadOrderImage, removeOrderImages, getSignedImageUrl } = require('../config/storage');
 
 const generateOrderNumber = async () => {
   const result = await query("SELECT nextval('order_number_seq') AS num");
@@ -20,6 +19,7 @@ const logHistory = async (client, orderId, action, description, user) => {
 // Create new order
 const createOrder = async (req, res) => {
   const client = await getClient();
+  let uploadedImagePath = null;
   try {
     await client.query('BEGIN');
     const { customerName, customerPhone, customerEmail, orderDetails, isPaid, pickupStoreId, pickupDate } = req.body;
@@ -27,12 +27,12 @@ const createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
     const orderNumber = await generateOrderNumber();
-    const imagePath = req.file ? req.file.filename : null;
+    uploadedImagePath = await uploadOrderImage(req.file, req.user.storeId);
     const result = await client.query(
       `INSERT INTO orders (order_number,store_id,customer_name,customer_phone,customer_email,order_details,is_paid,reference_image_path,pickup_store_id,pickup_date,created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [orderNumber, req.user.storeId, customerName.trim(), customerPhone.trim(), customerEmail?.trim()||null,
-       orderDetails.trim(), isPaid===true||isPaid==='true'||isPaid==='yes', imagePath, pickupStoreId, pickupDate, req.user.storeId]
+       orderDetails.trim(), isPaid===true||isPaid==='true'||isPaid==='yes', uploadedImagePath, pickupStoreId, pickupDate, req.user.storeId]
     );
     const order = result.rows[0];
     const storeResult = await client.query('SELECT name FROM stores WHERE id=$1', [pickupStoreId]);
@@ -48,7 +48,7 @@ const createOrder = async (req, res) => {
     res.status(201).json({ message: 'Order created successfully', order: { id: order.id, orderNumber: order.order_number, customerName: order.customer_name, pickupDate: order.pickup_date, status: order.status } });
   } catch (error) {
     await client.query('ROLLBACK');
-    if (req.file) { const fp = path.join(process.env.UPLOAD_DIR||'uploads', req.file.filename); if (fs.existsSync(fp)) fs.unlinkSync(fp); }
+    if (uploadedImagePath) await removeOrderImages([uploadedImagePath]).catch(() => {});
     res.status(500).json({ message: 'Failed to create order' });
   } finally { client.release(); }
 };
@@ -291,8 +291,11 @@ const updateOrderStatus = async (req, res) => {
 const deleteOrder = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await query('DELETE FROM orders WHERE id=$1 RETURNING order_number', [id]);
+    const result = await query('DELETE FROM orders WHERE id=$1 RETURNING order_number,reference_image_path', [id]);
     if (result.rows.length === 0) return res.status(404).json({ message: 'Order not found' });
+    if (result.rows[0].reference_image_path) {
+      await removeOrderImages([result.rows[0].reference_image_path]).catch(error => console.error('Image delete failed:', error.message));
+    }
     res.json({ message: `Order ${result.rows[0].order_number} deleted` });
   } catch (error) { res.status(500).json({ message: 'Failed to delete order' }); }
 };
@@ -309,7 +312,9 @@ const getOrder = async (req, res) => {
     if (!req.user.isFactory && !req.user.isAdmin && result.rows[0].store_id !== req.user.storeId) {
       return res.status(403).json({ message: 'Access denied' });
     }
-    res.json(result.rows[0]);
+    const order = result.rows[0];
+    if (order.reference_image_path) order.reference_image_path = await getSignedImageUrl(order.reference_image_path);
+    res.json(order);
   } catch (error) { res.status(500).json({ message: 'Failed to fetch order' }); }
 };
 

@@ -48,5 +48,7 @@ export class OrdersService {
   updateOrderStatus(orderId: string, status: string): Observable<any> { return this.http.put(`${this.API}/${orderId}/status`, { status }); }
   deleteOrder(id: string): Observable<any> { return this.http.delete(`${this.API}/${id}`); }
   getOrder(id: string): Observable<Order> { return this.http.get<Order>(`${this.API}/${id}`); }
-  getImageUrl(filename: string): string { return `${environment.apiUrl.replace('/api','')}/uploads/${filename}`; }
+  getImageUrl(filename: string): string {
+    return /^https?:\/\//i.test(filename) ? filename : `${environment.apiUrl.replace('/api','')}/uploads/${filename}`;
+  }
 }
