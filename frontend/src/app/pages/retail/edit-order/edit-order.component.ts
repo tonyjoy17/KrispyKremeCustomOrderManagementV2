@@ -82,6 +82,14 @@ import { Order } from '../../../models';
               <label>Pickup Date *</label>
               <input type="date" [(ngModel)]="form.pickupDate" [min]="today" />
             </div>
+            <div class="field">
+              <label>Pickup Time <span class="opt">(optional)</span></label>
+              <input type="time" [(ngModel)]="form.pickupTime" />
+            </div>
+            <div class="field">
+              <label>Total Price <span class="opt">(optional)</span></label>
+              <input type="number" [(ngModel)]="form.totalPrice" min="0" step="0.01" placeholder="0.00" />
+            </div>
           </div>
         </div>
 
@@ -146,7 +154,7 @@ export class EditOrderComponent implements OnInit {
   form = {
     customerName: '', customerPhone: '', customerEmail: '',
     orderDetails: '', notes: '', isPaid: false,
-    pickupStoreId: '', pickupDate: ''
+    pickupStoreId: '', pickupDate: '', pickupTime: '', totalPrice: null as number | null
   };
 
   constructor(
@@ -169,7 +177,9 @@ export class EditOrderComponent implements OnInit {
           notes: o.notes || '',
           isPaid: o.is_paid ?? o.isPaid ?? false,
           pickupStoreId: o.pickup_store_id || o.pickupStoreId || '',
-          pickupDate: this.formatDate(o.pickup_date || o.pickupDate || '')
+          pickupDate: this.formatDate(o.pickup_date || o.pickupDate || ''),
+          pickupTime: (o.pickup_time || o.pickupTime || '').slice(0, 5),
+          totalPrice: o.total_price ?? o.totalPrice ?? null
         };
         this.loadingOrder = false;
       },

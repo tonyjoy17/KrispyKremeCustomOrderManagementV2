@@ -3,7 +3,7 @@
 ## Prerequisites
 - GitHub account
 - Render account (render.com)
-- Gmail account (for email notifications)
+- Resend account with `kkcustomorders.com` verified
 
 ---
 
@@ -50,11 +50,15 @@ git push -u origin main
 | `JWT_SECRET` | (any long random string, e.g. `orderflow_super_secret_2024_xyz`) |
 | `JWT_EXPIRES_IN` | `8h` |
 | `FACTORY_EMAIL` | your factory email |
-| `SMTP_HOST` | `smtp.gmail.com` |
-| `SMTP_PORT` | `587` |
-| `SMTP_SECURE` | `false` |
-| `SMTP_USER` | your Gmail address |
-| `SMTP_PASS` | your Gmail App Password |
+| `EMAIL_FROM` | `Krispy Kreme Custom Orders <orders@kkcustomorders.com>` |
+| `SMTP_HOST` | `smtp.resend.com` |
+| `SMTP_PORT` | `465` |
+| `SMTP_SECURE` | `true` |
+| `SMTP_USER` | `resend` |
+| `SMTP_PASS` | your Resend API key (`re_...`) |
+| `APP_TIME_ZONE` | `Australia/Adelaide` |
+| `DAILY_FACTORY_REPORT_TIME` | `14:30` |
+| `DAILY_RETAIL_REPORT_TIME` | `06:00` |
 | `UPLOAD_DIR` | `uploads` |
 | `FRONTEND_URL` | (fill in AFTER deploying frontend in Step 5) |
 
@@ -120,3 +124,18 @@ Open your frontend URL and login with:
 - **Free tier spins down** after 15 mins of inactivity — first load may take 30-60 seconds
 - **Uploaded images** will be lost on redeploy (free tier has no persistent disk) — for demo this is fine
 - To keep the service warm, you can use a free uptime monitor like uptimerobot.com to ping `/api/health` every 10 mins
+
+---
+
+## Daily email jobs
+
+1. In Supabase SQL Editor, run `backend/supabase/migrations/20260906_scheduled_email_log.sql`.
+2. Make sure every retail/pickup store that should receive a morning report has an email address in its store profile.
+3. In Render, create one **Cron Job** from the same repository:
+   - Root Directory: `backend`
+   - Build Command: `npm install`
+   - Command: `npm run email:scheduled`
+   - Schedule: `*/30 * * * *`
+4. Add the same Supabase and Resend environment variables used by the backend, plus the three scheduling variables shown above.
+
+The command checks Adelaide local time, so daylight-saving changes are handled automatically. The database log prevents the same report being sent twice. At 2:30 PM the factory receives tomorrow's production list. At 6:00 AM each active retail store with an email receives its own pickup list for today, including a zero-order confirmation when applicable.

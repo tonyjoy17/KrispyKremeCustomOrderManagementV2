@@ -76,7 +76,9 @@ import { FormsModule } from '@angular/forms';
             <div class="section">
               <div class="sec-title">Pickup</div>
               <div class="info-row"><span class="label">Date</span><span class="val pickup-date">{{ (order.pickup_date || order.pickupDate) | date:'EEEE, d MMMM y' }}</span></div>
+              <div class="info-row" *ngIf="order.pickup_time || order.pickupTime"><span class="label">Time</span><span class="val">{{ formatPickupTime(order.pickup_time || order.pickupTime) }}</span></div>
               <div class="info-row"><span class="label">Store</span><span class="val">{{ order.pickup_store_name }}</span></div>
+              <div class="info-row" *ngIf="order.total_price !== null && order.total_price !== undefined"><span class="label">Total Price</span><span class="val">{{ order.total_price | currency:'AUD':'symbol':'1.2-2' }}</span></div>
             </div>
 
             <div class="section">
@@ -266,6 +268,13 @@ export class OrderDetailComponent implements OnInit {
   getStatusLabel(s: string): string {
     const map: any = { pending: 'Pending', in_progress: 'In Progress', ready: 'Ready', completed: 'Completed', cancelled: 'Cancelled' };
     return map[s] || s;
+  }
+
+  formatPickupTime(value?: string): string {
+    if (!value) return '';
+    const [hours, minutes] = value.split(':').map(Number);
+    const suffix = hours >= 12 ? 'PM' : 'AM';
+    return `${hours % 12 || 12}:${String(minutes || 0).padStart(2, '0')} ${suffix}`;
   }
 
   getImageUrl(fn: string): string { return this.ordersService.getImageUrl(fn); }

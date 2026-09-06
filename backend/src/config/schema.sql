@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS orders (
   reference_image_path TEXT,
   pickup_store_id UUID NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
   pickup_date DATE NOT NULL,
+  pickup_time TIME,
+  total_price NUMERIC(10,2) CONSTRAINT orders_total_price_nonnegative CHECK (total_price IS NULL OR total_price >= 0),
   status VARCHAR(20) NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'in_progress', 'ready', 'completed', 'cancelled')),
   email_sent BOOLEAN DEFAULT FALSE,
@@ -72,6 +74,8 @@ CREATE TABLE IF NOT EXISTS orders (
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_notified BOOLEAN DEFAULT FALSE;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_notified_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS pickup_time TIME;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS total_price NUMERIC(10,2);
 ALTER TABLE orders ALTER COLUMN reference_image_path TYPE TEXT;
 
 -- Compatibility with the earlier OrderFlow schema. Keep any existing values,
@@ -101,6 +105,16 @@ CREATE TABLE IF NOT EXISTS order_history (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS scheduled_email_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  report_type VARCHAR(40) NOT NULL,
+  report_date DATE NOT NULL,
+  recipient VARCHAR(255) NOT NULL,
+  order_count INTEGER NOT NULL DEFAULT 0,
+  sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  CONSTRAINT scheduled_email_log_unique_delivery UNIQUE (report_type, report_date, recipient)
+);
+
 -- =============================================
 -- INDEXES
 -- =============================================
@@ -112,6 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_stores_username ON stores(username);
 CREATE INDEX IF NOT EXISTS idx_stores_is_factory ON stores(is_factory);
 CREATE INDEX IF NOT EXISTS idx_order_history_order_id ON order_history(order_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_email_log_date ON scheduled_email_log(report_date);
 
 -- =============================================
 -- AUTO-UPDATE updated_at TRIGGER
@@ -180,18 +195,19 @@ ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scheduled_email_log ENABLE ROW LEVEL SECURITY;
 
 REVOKE EXECUTE ON FUNCTION next_order_number() FROM PUBLIC;
 
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON TABLE stores, system_settings, orders, order_history, orders_detailed FROM anon;
+    REVOKE ALL ON TABLE stores, system_settings, orders, order_history, scheduled_email_log, orders_detailed FROM anon;
     REVOKE ALL ON SEQUENCE order_number_seq FROM anon;
     REVOKE EXECUTE ON FUNCTION next_order_number() FROM anon;
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    REVOKE ALL ON TABLE stores, system_settings, orders, order_history, orders_detailed FROM authenticated;
+    REVOKE ALL ON TABLE stores, system_settings, orders, order_history, scheduled_email_log, orders_detailed FROM authenticated;
     REVOKE ALL ON SEQUENCE order_number_seq FROM authenticated;
     REVOKE EXECUTE ON FUNCTION next_order_number() FROM authenticated;
   END IF;
@@ -205,10 +221,12 @@ COMMENT ON TABLE stores IS 'Retail stores, factory and admin accounts';
 COMMENT ON TABLE orders IS 'Customer orders placed by retail stores';
 COMMENT ON TABLE order_history IS 'Audit trail for order changes';
 COMMENT ON TABLE system_settings IS 'Global system configuration';
+COMMENT ON TABLE scheduled_email_log IS 'Idempotency log for daily email reports';
 
 ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scheduled_email_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
 
 -- Private bucket: authorized API responses provide one-hour signed URLs.

@@ -112,15 +112,16 @@ SUPABASE_SECRET_KEY=sb_secret_your_secret_key
 JWT_SECRET=change_this_to_a_long_random_string
 JWT_EXPIRES_IN=8h
 
-FACTORY_EMAIL=factory@yourcompany.com
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
+FACTORY_EMAIL=your_factory_destination@example.com
+EMAIL_FROM=Krispy Kreme Custom Orders <orders@kkcustomorders.com>
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=resend
+SMTP_PASS=re_your_resend_api_key
 ```
 
-> **Gmail tip**: Use an App Password (not your regular password). Go to Google Account → Security → 2-Step Verification → App passwords.
+The `EMAIL_FROM` domain must be verified in Resend. Keep the Resend API key in the backend environment only.
 
 ```bash
 npm run dev     # starts on http://localhost:3000

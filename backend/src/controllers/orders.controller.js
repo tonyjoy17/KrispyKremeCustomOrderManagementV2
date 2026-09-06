@@ -1,15 +1,17 @@
 const { supabase } = require('../config/database');
-const { sendOrderEmail, sendOrderUpdatedEmail, sendCustomerReadyEmail } = require('../config/email');
+const { sendOrderPlacedNotifications, sendOrderUpdatedEmail, sendCustomerReadyEmail } = require('../config/email');
 const { uploadOrderImage, removeOrderImages, getSignedImageUrl } = require('../config/storage');
 
 const APP_TIME_ZONE = process.env.APP_TIME_ZONE || 'Australia/Adelaide';
-const ORDER_SELECT = '*,store:stores!orders_store_id_fkey(name,store_code),pickup_store:stores!orders_pickup_store_id_fkey(name,store_code)';
+const ORDER_SELECT = '*,store:stores!orders_store_id_fkey(name,store_code,email),pickup_store:stores!orders_pickup_store_id_fkey(name,store_code,email)';
 const asDetailed = ({ store, pickup_store: pickupStore, ...order }) => ({
   ...order,
   store_name: store?.name,
   store_code: store?.store_code,
+  store_email: store?.email,
   pickup_store_name: pickupStore?.name,
   pickup_store_code: pickupStore?.store_code,
+  pickup_store_email: pickupStore?.email,
 });
 const adelaideDate = (offset = 0) => {
   const date = new Date(Date.now() + offset * 86400000);
@@ -56,8 +58,10 @@ const applyOrderFilters = (request, { filter, storeId, search, date }, factory =
 const createOrder = async (req, res) => {
   let uploadedImagePath = null;
   try {
-    const { customerName, customerPhone, customerEmail, orderDetails, isPaid, pickupStoreId, pickupDate, orderStoreId } = req.body;
+    const { customerName, customerPhone, customerEmail, orderDetails, isPaid, pickupStoreId, pickupDate, pickupTime, totalPrice, orderStoreId } = req.body;
     if (!customerName || !customerPhone || !orderDetails || !pickupStoreId || !pickupDate) return res.status(400).json({ message: 'Missing required fields' });
+    const parsedTotalPrice = totalPrice === undefined || totalPrice === '' ? null : Number(totalPrice);
+    if (parsedTotalPrice !== null && (!Number.isFinite(parsedTotalPrice) || parsedTotalPrice < 0)) return res.status(400).json({ message: 'Total price cannot be negative' });
     let orderStoreIdValue = req.user.storeId;
     if (req.user.isAdmin) {
       if (!orderStoreId) return res.status(400).json({ message: 'Order store is required for administrators' });
@@ -75,13 +79,13 @@ const createOrder = async (req, res) => {
       customer_phone: customerPhone.trim(), customer_email: customerEmail?.trim() || null,
       order_details: orderDetails.trim(), is_paid: isPaid === true || isPaid === 'true' || isPaid === 'yes',
       reference_image_path: uploadedImagePath, pickup_store_id: pickupStoreId,
-      pickup_date: pickupDate, created_by: req.user.storeId,
+      pickup_date: pickupDate, pickup_time: pickupTime || null, total_price: parsedTotalPrice, created_by: req.user.storeId,
     }).select(ORDER_SELECT).single();
     if (error) throw error;
     const detailed = asDetailed(order);
     await logHistory(order.id, 'created', 'Order created', req.user);
-    sendOrderEmail(detailed, req.user.storeName).then(async result => {
-      if (!result?.skipped) await supabase.from('orders').update({ email_sent: true, email_sent_at: new Date().toISOString() }).eq('id', order.id);
+    sendOrderPlacedNotifications(detailed, req.user.storeName).then(async result => {
+      if (result.factorySent) await supabase.from('orders').update({ email_sent: true, email_sent_at: new Date().toISOString() }).eq('id', order.id);
     }).catch(error => console.error('Email failed:', error.message));
     res.status(201).json({ message: 'Order created successfully', order: { id: order.id, orderNumber: order.order_number, customerName: order.customer_name, pickupDate: order.pickup_date, status: order.status } });
   } catch (error) {
@@ -99,7 +103,7 @@ const editOrder = async (req, res) => {
     const old = asDetailed(raw);
     if (!req.user.isFactory && !req.user.isAdmin && old.store_id !== req.user.storeId) return res.status(403).json({ message: 'Access denied' });
     if (['completed', 'cancelled'].includes(old.status)) return res.status(400).json({ message: 'Cannot edit completed or cancelled orders' });
-    const { customerName, customerPhone, customerEmail, orderDetails, isPaid, pickupStoreId, pickupDate, notes } = req.body;
+    const { customerName, customerPhone, customerEmail, orderDetails, isPaid, pickupStoreId, pickupDate, pickupTime, totalPrice, notes } = req.body;
     const changes = [];
     if (customerName && customerName !== old.customer_name) changes.push(`Customer name: "${old.customer_name}" → "${customerName}"`);
     if (customerPhone && customerPhone !== old.customer_phone) changes.push(`Phone: "${old.customer_phone}" → "${customerPhone}"`);
@@ -108,6 +112,11 @@ const editOrder = async (req, res) => {
     const newIsPaid = isPaid === true || isPaid === 'true' || isPaid === 'yes';
     if (isPaid !== undefined && newIsPaid !== old.is_paid) changes.push(`Payment: ${old.is_paid ? 'Paid' : 'Unpaid'} → ${newIsPaid ? 'Paid' : 'Unpaid'}`);
     if (pickupDate && pickupDate !== old.pickup_date) changes.push('Pickup date changed');
+    if (pickupTime !== undefined && (pickupTime || null) !== old.pickup_time) changes.push('Pickup time changed');
+    const parsedTotalPrice = totalPrice === undefined || totalPrice === '' || totalPrice === null ? null : Number(totalPrice);
+    if (totalPrice !== undefined && parsedTotalPrice !== null && (!Number.isFinite(parsedTotalPrice) || parsedTotalPrice < 0)) return res.status(400).json({ message: 'Total price cannot be negative' });
+    const oldTotalPrice = old.total_price === null || old.total_price === undefined ? null : Number(old.total_price);
+    if (totalPrice !== undefined && parsedTotalPrice !== oldTotalPrice) changes.push('Total price changed');
     if (pickupStoreId && pickupStoreId !== old.pickup_store_id) changes.push('Pickup store changed');
     const update = {};
     if (customerName) update.customer_name = customerName.trim();
@@ -117,6 +126,8 @@ const editOrder = async (req, res) => {
     if (isPaid !== undefined) update.is_paid = newIsPaid;
     if (pickupStoreId) update.pickup_store_id = pickupStoreId;
     if (pickupDate) update.pickup_date = pickupDate;
+    if (pickupTime !== undefined) update.pickup_time = pickupTime || null;
+    if (totalPrice !== undefined) update.total_price = parsedTotalPrice;
     if (notes !== undefined) update.notes = notes?.trim() || null;
     const result = await supabase.from('orders').update(update).eq('id', req.params.id).select(ORDER_SELECT).single();
     if (result.error) throw result.error;

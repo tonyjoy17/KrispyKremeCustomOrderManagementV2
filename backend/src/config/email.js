@@ -1,10 +1,11 @@
 const nodemailer = require('nodemailer');
 const { supabase } = require('./database');
 const APP_TIME_ZONE = process.env.APP_TIME_ZONE || 'Australia/Adelaide';
+const EMAIL_FROM = process.env.EMAIL_FROM;
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
+  host: process.env.SMTP_HOST || 'smtp.resend.com',
+  port: parseInt(process.env.SMTP_PORT || '465'),
   secure: process.env.SMTP_SECURE === 'true',
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
 });
@@ -20,6 +21,14 @@ const getSetting = async (key) => {
 const formatDate = (date) => new Date(date).toLocaleDateString('en-AU', {
   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: APP_TIME_ZONE
 });
+const formatTime = (time) => {
+  if (!time) return null;
+  const [hours, minutes] = time.split(':').map(Number);
+  return `${hours % 12 || 12}:${String(minutes || 0).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+};
+const formatPrice = (price) => price === null || price === undefined
+  ? null
+  : new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(Number(price));
 
 // Email to factory on new order
 const sendOrderEmail = async (order, storeName) => {
@@ -62,17 +71,18 @@ const sendOrderEmail = async (order, storeName) => {
         <div class="field"><span class="field-label">Phone</span><span class="field-value">${order.customer_phone}</span></div>
         ${order.customer_email ? `<div class="field"><span class="field-label">Email</span><span class="field-value">${order.customer_email}</span></div>` : ''}
         <div class="field"><span class="field-label">Payment</span><span class="field-value ${order.is_paid ? 'paid-yes' : 'paid-no'}">${order.is_paid ? '✓ PAID' : '✗ NOT PAID'}</span></div>
+        ${formatPrice(order.total_price) ? `<div class="field"><span class="field-label">Total Price</span><span class="field-value">${formatPrice(order.total_price)}</span></div>` : ''}
       </div>
       <div class="section"><div class="section-title">📋 Order Details</div><div class="details-box">${order.order_details}</div></div>
       <div class="section"><div class="section-title">📦 Pickup Information</div>
-        <div class="pickup-box"><div class="pickup-date">📅 ${pickupDate}</div><div class="pickup-store">📍 ${order.pickup_store_name || 'TBD'}</div></div>
+        <div class="pickup-box"><div class="pickup-date">📅 ${pickupDate}${formatTime(order.pickup_time) ? ` at ${formatTime(order.pickup_time)}` : ''}</div><div class="pickup-store">📍 ${order.pickup_store_name || 'TBD'}</div></div>
       </div>
     </div>
     <div class="footer"><p>🍩 Krispy Kreme SA Order Management OrderFlow Retail Order Management &bull; Automated notificationbull; Automated notification</p></div>
   </div></body></html>`;
 
   return transporter.sendMail({
-    from: `"OrderFlow" <${process.env.SMTP_USER}>`,
+    from: EMAIL_FROM,
     to: process.env.FACTORY_EMAIL,
     subject: `[Order #${order.order_number}] New Order from ${storeName} - Pickup ${pickupDate}`,
     html,
@@ -114,6 +124,8 @@ const sendOrderUpdatedEmail = async (order, storeName, changes) => {
       <div class="order-ref"><h2>Order #${order.order_number}</h2><p>Customer: ${order.customer_name} &bull; ${order.customer_phone}</p></div>
       <div class="changes-box"><h3>⚠️ What changed:</h3><ul>${changesList}</ul></div>
       <div class="field"><span class="field-label">Pickup Date</span><span class="field-value">${pickupDate}</span></div>
+      ${formatTime(order.pickup_time) ? `<div class="field"><span class="field-label">Pickup Time</span><span class="field-value">${formatTime(order.pickup_time)}</span></div>` : ''}
+      ${formatPrice(order.total_price) ? `<div class="field"><span class="field-label">Total Price</span><span class="field-value">${formatPrice(order.total_price)}</span></div>` : ''}
       <div class="field"><span class="field-label">Pickup Store</span><span class="field-value">${order.pickup_store_name || 'TBD'}</span></div>
       <div class="field"><span class="field-label">Status</span><span class="field-value">${order.status}</span></div>
     </div>
@@ -121,7 +133,7 @@ const sendOrderUpdatedEmail = async (order, storeName, changes) => {
   </div></body></html>`;
 
   return transporter.sendMail({
-    from: `"OrderFlow" <${process.env.SMTP_USER}>`,
+    from: EMAIL_FROM,
     to: process.env.FACTORY_EMAIL,
     subject: `[Order #${order.order_number}] Order Updated by ${storeName}`,
     html,
@@ -167,6 +179,8 @@ const sendCustomerReadyEmail = async (order, storeName) => {
         <div class="info-row"><span class="info-label">Order Number</span><span class="info-value">${order.order_number}</span></div>
         <div class="info-row"><span class="info-label">Pickup Location</span><span class="info-value">${order.pickup_store_name}</span></div>
         <div class="info-row"><span class="info-label">Pickup Date</span><span class="info-value">${pickupDate}</span></div>
+        ${formatTime(order.pickup_time) ? `<div class="info-row"><span class="info-label">Pickup Time</span><span class="info-value">${formatTime(order.pickup_time)}</span></div>` : ''}
+        ${formatPrice(order.total_price) ? `<div class="info-row"><span class="info-label">Total Price</span><span class="info-value">${formatPrice(order.total_price)}</span></div>` : ''}
         <div class="info-row"><span class="info-label">Payment</span><span class="info-value">${order.is_paid ? '✓ Already Paid' : '⚠️ Payment due on pickup'}</span></div>
       </div>
       <p style="font-size:13px;color:#64748b">Please bring this email or your order number when collecting.</p>
@@ -175,15 +189,102 @@ const sendCustomerReadyEmail = async (order, storeName) => {
   </div></body></html>`;
 
   return transporter.sendMail({
-    from: `"OrderFlow" <${process.env.SMTP_USER}>`,
+    from: EMAIL_FROM,
     to: order.customer_email,
     subject: `Your order #${order.order_number} is ready for pickup!`,
     html,
   });
 };
 
+const escapeHtml = value => String(value ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
+const orderSummaryHtml = (order, heading, intro) => `<!DOCTYPE html><html><body style="margin:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#1f2937">
+  <div style="max-width:640px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden">
+    <div style="padding:24px;background:#e4002b;color:#fff"><h1 style="margin:0;font-size:22px">${escapeHtml(heading)}</h1></div>
+    <div style="padding:24px"><p>${escapeHtml(intro)}</p>
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td style="padding:8px;border-bottom:1px solid #eee">Order</td><td style="padding:8px;border-bottom:1px solid #eee"><b>#${escapeHtml(order.order_number)}</b></td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid #eee">Customer</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(order.customer_name)}</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid #eee">Pickup</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(formatDate(order.pickup_date))}${formatTime(order.pickup_time) ? ` at ${escapeHtml(formatTime(order.pickup_time))}` : ''}</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid #eee">Pickup store</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(order.pickup_store_name || 'TBD')}</td></tr>
+        ${formatPrice(order.total_price) ? `<tr><td style="padding:8px;border-bottom:1px solid #eee">Total</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(formatPrice(order.total_price))}</td></tr>` : ''}
+        <tr><td style="padding:8px">Payment</td><td style="padding:8px">${order.is_paid ? 'Paid' : 'Not paid'}</td></tr>
+      </table>
+      <h3 style="margin-bottom:6px">Order details</h3><div style="white-space:pre-wrap;background:#f8fafc;padding:14px;border-radius:8px">${escapeHtml(order.order_details)}</div>
+    </div></div></body></html>`;
+
+const sendOrderPlacedNotifications = async (order, createdByName) => {
+  const enabled = await getSetting('email_new_order_enabled');
+  if (!enabled) return { factorySent: false, sent: 0, failed: 0, skipped: true };
+  const originName = order.store_name || createdByName;
+  const notifications = [];
+  const used = new Set();
+  const add = (kind, address, subject, html, factory = false) => {
+    const email = address?.trim().toLowerCase();
+    if (!email || used.has(email)) return;
+    used.add(email);
+    notifications.push({ kind, factory, promise: transporter.sendMail({ from: EMAIL_FROM, to: address, subject, html }) });
+  };
+
+  // Retain the existing factory email template and feature toggle.
+  if (process.env.FACTORY_EMAIL) {
+    used.add(process.env.FACTORY_EMAIL.trim().toLowerCase());
+    notifications.push({ kind: 'factory', factory: true, promise: sendOrderEmail(order, originName) });
+  }
+  add('customer', order.customer_email,
+    `Order #${order.order_number} received`,
+    orderSummaryHtml(order, 'We received your custom order', `Hi ${order.customer_name}, your order has been placed successfully.`));
+  add('origin store', order.store_email,
+    `[Order #${order.order_number}] Order placed for ${originName}`,
+    orderSummaryHtml(order, 'New retail order', `This order was created for ${originName} by ${createdByName}.`));
+  add('pickup store', order.pickup_store_email,
+    `[Order #${order.order_number}] Incoming pickup order`,
+    orderSummaryHtml(order, 'New order for pickup at your store', `Please expect this order for pickup at ${order.pickup_store_name}.`));
+
+  const results = await Promise.allSettled(notifications.map(item => item.promise));
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') console.error(`[Email] ${notifications[index].kind} notification failed:`, result.reason?.message || result.reason);
+  });
+  return {
+    factorySent: notifications.some((item, index) => item.factory && results[index].status === 'fulfilled' && !results[index].value?.skipped),
+    sent: results.filter(result => result.status === 'fulfilled').length,
+    failed: results.filter(result => result.status === 'rejected').length,
+  };
+};
+
+const summaryRows = orders => orders.map(order => `<tr>
+  <td style="padding:8px;border:1px solid #ddd">#${escapeHtml(order.order_number)}</td>
+  <td style="padding:8px;border:1px solid #ddd">${escapeHtml(order.customer_name)}<br><small>${escapeHtml(order.customer_phone)}</small></td>
+  <td style="padding:8px;border:1px solid #ddd">${escapeHtml(order.store?.name || '')}</td>
+  <td style="padding:8px;border:1px solid #ddd">${escapeHtml(formatTime(order.pickup_time) || 'Any time')}</td>
+  <td style="padding:8px;border:1px solid #ddd;white-space:pre-wrap">${escapeHtml(order.order_details)}</td>
+  <td style="padding:8px;border:1px solid #ddd">${order.is_paid ? 'Paid' : 'Not paid'}${formatPrice(order.total_price) ? `<br>${escapeHtml(formatPrice(order.total_price))}` : ''}</td>
+</tr>`).join('');
+
+const dailySummaryHtml = (heading, date, orders, message) => `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;color:#1f2937">
+  <h1>${escapeHtml(heading)}</h1><p><b>${escapeHtml(formatDate(date))}</b></p><p>${escapeHtml(message)}</p>
+  ${orders.length ? `<table style="width:100%;border-collapse:collapse"><thead><tr><th style="padding:8px;border:1px solid #ddd">Order</th><th style="padding:8px;border:1px solid #ddd">Customer</th><th style="padding:8px;border:1px solid #ddd">Origin</th><th style="padding:8px;border:1px solid #ddd">Time</th><th style="padding:8px;border:1px solid #ddd">Details</th><th style="padding:8px;border:1px solid #ddd">Payment</th></tr></thead><tbody>${summaryRows(orders)}</tbody></table>` : '<p><b>No orders are scheduled.</b></p>'}
+  <p>Total orders: <b>${orders.length}</b></p></body></html>`;
+
+const sendFactoryProductionSummaryEmail = (orders, date) => transporter.sendMail({
+  from: EMAIL_FROM,
+  to: process.env.FACTORY_EMAIL,
+  subject: `[Production] ${orders.length} order${orders.length === 1 ? '' : 's'} for ${formatDate(date)}`,
+  html: dailySummaryHtml('Next-day production orders', date, orders, 'Production list for orders being picked up tomorrow.'),
+});
+
+const sendRetailPickupSummaryEmail = (store, orders, date) => transporter.sendMail({
+  from: EMAIL_FROM,
+  to: store.email,
+  subject: `[Pickup check] ${orders.length} order${orders.length === 1 ? '' : 's'} for today`,
+  html: dailySummaryHtml(`${store.name} pickup orders`, date, orders, 'Please check that all listed orders have arrived for today’s pickups.'),
+});
+
 const verifyConnection = async () => {
   try {
+    if (!EMAIL_FROM) throw new Error('EMAIL_FROM is required');
     await transporter.verify();
     console.log('✅ Email service connected');
     return true;
@@ -193,4 +294,7 @@ const verifyConnection = async () => {
   }
 };
 
-module.exports = { sendOrderEmail, sendOrderUpdatedEmail, sendCustomerReadyEmail, verifyConnection };
+module.exports = {
+  sendOrderEmail, sendOrderPlacedNotifications, sendOrderUpdatedEmail, sendCustomerReadyEmail,
+  sendFactoryProductionSummaryEmail, sendRetailPickupSummaryEmail, verifyConnection,
+};

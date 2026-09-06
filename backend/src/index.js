@@ -7,6 +7,7 @@ const ordersRoutes = require('./routes/orders.routes');
 const storesRoutes = require('./routes/stores.routes');
 const adminRoutes = require('./routes/admin.routes');
 const { scheduleCleanup } = require('./config/imageCleanup');
+const { verifyConnection } = require('./config/email');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,6 +41,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  verifyConnection();
   scheduleCleanup();
 });
 module.exports = app;

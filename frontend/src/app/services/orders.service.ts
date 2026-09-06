@@ -18,6 +18,8 @@ export class OrdersService {
     formData.append('isPaid', String(request.isPaid));
     formData.append('pickupStoreId', request.pickupStoreId);
     formData.append('pickupDate', request.pickupDate);
+    if (request.pickupTime) formData.append('pickupTime', request.pickupTime);
+    if (request.totalPrice !== undefined && request.totalPrice !== null) formData.append('totalPrice', String(request.totalPrice));
     if (request.orderStoreId) formData.append('orderStoreId', request.orderStoreId);
     if (request.referenceImage) formData.append('referenceImage', request.referenceImage);
     return this.http.post(this.API, formData);

@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "email:scheduled": "node scripts/run-scheduled-emails.js",
+    "email:factory": "node scripts/run-scheduled-emails.js factory",
+    "email:retail": "node scripts/run-scheduled-emails.js retail",
     "db:setup": "node scripts/setup-database.js",
     "db:check": "node scripts/check-database.js"
   },

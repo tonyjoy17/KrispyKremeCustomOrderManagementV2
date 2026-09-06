@@ -55,6 +55,7 @@ import { Order } from '../../../models';
             <div class="pickup-date">
               <svg viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M5 0a1 1 0 00-1 1v1H3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2h-1V1a1 1 0 10-2 0v1H5V1a1 1 0 00-1-1zm0 5a1 1 0 000 2h6a1 1 0 100-2H5z" clip-rule="evenodd"/></svg>
               {{ o.pickup_date | date:'d MMM y' }}
+              <small *ngIf="o.pickup_time">{{ o.pickup_time.slice(0, 5) }}</small>
             </div>
           </div>
           <div class="order-right">
@@ -104,6 +105,8 @@ import { Order } from '../../../models';
     .customer-phone { font-size:12px; color:#94a3b8; }
     .order-mid { flex:1; display:flex; gap:20px; }
     .pickup-info, .pickup-date { display:flex; align-items:center; gap:5px; font-size:13px; color:#64748b; }
+    .pickup-date { flex-wrap:wrap; }
+    .pickup-date small { color:#475569; font-size:11px; font-weight:600; }
     .pickup-info svg, .pickup-date svg { width:13px; height:13px; flex-shrink:0; }
     .order-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .status-badge { font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; }

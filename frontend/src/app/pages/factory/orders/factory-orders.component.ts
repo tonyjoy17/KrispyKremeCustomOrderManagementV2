@@ -75,6 +75,7 @@ import { Order } from '../../../models';
             <span class="store-tag pickup">{{ order.pickup_store_name || order.pickupStoreName }}</span>
             <span class="date" [class.today]="isToday(order.pickup_date || order.pickupDate || '')" [class.tomorrow]="isTomorrow(order.pickup_date || order.pickupDate || '')">
               {{ (order.pickup_date || order.pickupDate) | date:'d MMM y' }}
+              <small *ngIf="order.pickup_time">{{ order.pickup_time.slice(0, 5) }}</small>
               <span *ngIf="isToday(order.pickup_date || order.pickupDate || '')" class="date-badge today-badge">Today</span>
               <span *ngIf="isTomorrow(order.pickup_date || order.pickupDate || '')" class="date-badge tomorrow-badge">Tomorrow</span>
             </span>
@@ -176,6 +177,7 @@ import { Order } from '../../../models';
     .store-tag.pickup { background: #eff6ff; color: #1d4ed8; }
 
     .date { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+    .date small { color:#475569; font-size:11px; font-weight:600; }
     .date.today { color: #dc2626; font-weight: 700; }
     .date.tomorrow { color: #d97706; font-weight: 700; }
     .date-badge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 20px; display: inline-block; }

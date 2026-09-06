@@ -119,6 +119,17 @@ import { CreateOrderRequest } from '../../../models';
               </div>
             </div>
 
+            <div class="fields-grid two-col">
+              <div class="field">
+                <label>Pickup Time <span class="opt">(optional)</span></label>
+                <input type="time" [(ngModel)]="form.pickupTime" name="pickupTime" [disabled]="loading" />
+              </div>
+              <div class="field">
+                <label>Total Price <span class="opt">(optional)</span></label>
+                <input type="number" [(ngModel)]="form.totalPrice" name="totalPrice" min="0" step="0.01" placeholder="0.00" [disabled]="loading" />
+              </div>
+            </div>
+
             <!-- Payment -->
             <div class="field">
               <label>Payment Status <span class="req">*</span></label>
@@ -357,6 +368,8 @@ export class NewOrderComponent implements OnInit {
       isPaid: this.form.isPaid!,
       pickupStoreId: this.form.pickupStoreId!,
       pickupDate: this.form.pickupDate!,
+      pickupTime: this.form.pickupTime || undefined,
+      totalPrice: this.form.totalPrice ?? undefined,
       referenceImage: this.imageFile || undefined,
       orderStoreId: this.form.orderStoreId,
     };
