@@ -52,7 +52,7 @@ git push -u origin main
 | `FACTORY_EMAIL` | your factory email |
 | `EMAIL_FROM` | `Krispy Kreme Custom Orders <orders@kkcustomorders.com>` |
 | `SMTP_HOST` | `smtp.resend.com` |
-| `SMTP_PORT` | `465` |
+| `SMTP_PORT` | `2465` |
 | `SMTP_SECURE` | `true` |
 | `SMTP_USER` | `resend` |
 | `SMTP_PASS` | your Resend API key (`re_...`) |

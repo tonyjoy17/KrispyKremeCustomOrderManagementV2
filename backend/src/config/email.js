@@ -5,7 +5,9 @@ const EMAIL_FROM = process.env.EMAIL_FROM;
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.resend.com',
-  port: parseInt(process.env.SMTP_PORT || '465'),
+  // Render free web services block the standard SMTP ports. Resend's alternate
+  // SMTPS port provides the same implicit TLS connection over an allowed port.
+  port: parseInt(process.env.SMTP_PORT || '2465'),
   secure: process.env.SMTP_SECURE === 'true',
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
 });
