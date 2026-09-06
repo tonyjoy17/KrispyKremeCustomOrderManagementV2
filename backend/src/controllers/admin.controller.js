@@ -14,10 +14,18 @@ const updateSetting = async (req, res) => {
     const { value } = req.body;
     const allowed = ['email_new_order_enabled', 'email_order_updated_enabled', 'email_customer_ready_enabled'];
     if (!allowed.includes(key)) return res.status(400).json({ message: 'Invalid setting key' });
-    const { error } = await supabase.from('system_settings').update({ value, updated_at: new Date().toISOString(), updated_by: req.user.storeId }).eq('key', key);
+    if (!['true', 'false'].includes(value)) return res.status(400).json({ message: 'Setting value must be true or false' });
+    // Upsert also repairs live databases where the default setting rows were not
+    // installed. Do not write updated_by because older schemas may omit it.
+    const { data, error } = await supabase.from('system_settings')
+      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+      .select('key,value,updated_at').single();
     if (error) throw error;
-    res.json({ message: 'Setting updated', key, value });
-  } catch { res.status(500).json({ message: 'Failed to update setting' }); }
+    res.json({ message: 'Setting updated', ...data });
+  } catch (error) {
+    console.error('Update setting error:', error);
+    res.status(500).json({ message: error.message || 'Failed to update setting' });
+  }
 };
 
 const getAllStores = async (_req, res) => {

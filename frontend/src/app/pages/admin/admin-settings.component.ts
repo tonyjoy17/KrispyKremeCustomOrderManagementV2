@@ -14,6 +14,7 @@ import { AdminService } from '../../services/admin.service';
       </div>
 
       <div *ngIf="loading" class="loading-wrap"><div class="spinner"></div></div>
+      <div *ngIf="error" class="error-box">{{ error }}</div>
 
       <div *ngIf="!loading" class="settings-grid">
 
@@ -27,7 +28,7 @@ import { AdminService } from '../../services/admin.service';
           </div>
           <div class="toggle-wrap">
             <span class="toggle-label" [class.on]="getVal('email_new_order_enabled')">{{ getVal('email_new_order_enabled') ? 'ON' : 'OFF' }}</span>
-            <button class="toggle" [class.active]="getVal('email_new_order_enabled')" (click)="toggle('email_new_order_enabled')">
+            <button class="toggle" [disabled]="saving['email_new_order_enabled']" [class.active]="getVal('email_new_order_enabled')" (click)="toggle('email_new_order_enabled')">
               <span class="toggle-knob"></span>
             </button>
           </div>
@@ -43,7 +44,7 @@ import { AdminService } from '../../services/admin.service';
           </div>
           <div class="toggle-wrap">
             <span class="toggle-label" [class.on]="getVal('email_order_updated_enabled')">{{ getVal('email_order_updated_enabled') ? 'ON' : 'OFF' }}</span>
-            <button class="toggle" [class.active]="getVal('email_order_updated_enabled')" (click)="toggle('email_order_updated_enabled')">
+            <button class="toggle" [disabled]="saving['email_order_updated_enabled']" [class.active]="getVal('email_order_updated_enabled')" (click)="toggle('email_order_updated_enabled')">
               <span class="toggle-knob"></span>
             </button>
           </div>
@@ -59,7 +60,7 @@ import { AdminService } from '../../services/admin.service';
           </div>
           <div class="toggle-wrap">
             <span class="toggle-label" [class.on]="getVal('email_customer_ready_enabled')">{{ getVal('email_customer_ready_enabled') ? 'ON' : 'OFF' }}</span>
-            <button class="toggle" [class.active]="getVal('email_customer_ready_enabled')" (click)="toggle('email_customer_ready_enabled')">
+            <button class="toggle" [disabled]="saving['email_customer_ready_enabled']" [class.active]="getVal('email_customer_ready_enabled')" (click)="toggle('email_customer_ready_enabled')">
               <span class="toggle-knob"></span>
             </button>
           </div>
@@ -102,15 +103,19 @@ import { AdminService } from '../../services/admin.service';
     .toggle-label.on { color:#059669; }
     .toggle { width:52px; height:28px; border-radius:14px; border:none; background:#e2e8f0; cursor:pointer; position:relative; transition:background 0.2s; padding:0; }
     .toggle.active { background:#7c3aed; }
+    .toggle:disabled { cursor:wait; opacity:0.65; }
     .toggle-knob { position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:white; transition:transform 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); display:block; }
     .toggle.active .toggle-knob { transform:translateX(24px); }
 
     .info-box { display:flex; gap:12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:16px 20px; font-size:13px; color:#0369a1; line-height:1.6; }
     .info-box svg { width:18px; height:18px; flex-shrink:0; margin-top:1px; }
+    .error-box { margin-bottom:16px; padding:12px 16px; border:1px solid #fecaca; border-radius:10px; background:#fef2f2; color:#b91c1c; font-size:13px; }
   `]
 })
 export class AdminSettingsComponent implements OnInit {
   settings: any = {};
+  saving: Record<string, boolean> = {};
+  error = '';
   loading = true;
   constructor(private adminService: AdminService) {}
 
@@ -121,8 +126,22 @@ export class AdminSettingsComponent implements OnInit {
   getVal(key: string): boolean { return this.settings[key]?.value === 'true'; }
 
   toggle(key: string) {
+    if (this.saving[key]) return;
+    this.error = '';
+    const oldVal = this.getVal(key) ? 'true' : 'false';
     const newVal = this.getVal(key) ? 'false' : 'true';
     this.settings[key] = { ...this.settings[key], value: newVal };
-    this.adminService.updateSetting(key, newVal).subscribe({ error: () => { this.settings[key] = { ...this.settings[key], value: newVal === 'true' ? 'false' : 'true' }; } });
+    this.saving[key] = true;
+    this.adminService.updateSetting(key, newVal).subscribe({
+      next: response => {
+        this.settings[key] = { ...this.settings[key], value: response.value, updated_at: response.updated_at };
+        this.saving[key] = false;
+      },
+      error: response => {
+        this.settings[key] = { ...this.settings[key], value: oldVal };
+        this.error = response.error?.message || 'Could not save the email setting.';
+        this.saving[key] = false;
+      },
+    });
   }
 }
