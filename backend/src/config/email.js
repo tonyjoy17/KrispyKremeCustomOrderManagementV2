@@ -75,7 +75,7 @@ const sendOrderEmail = async (order, storeName) => {
         <div class="field"><span class="field-label">Payment</span><span class="field-value ${order.is_paid ? 'paid-yes' : 'paid-no'}">${order.is_paid ? '✓ PAID' : '✗ NOT PAID'}</span></div>
         ${formatPrice(order.total_price) ? `<div class="field"><span class="field-label">Total Price</span><span class="field-value">${formatPrice(order.total_price)}</span></div>` : ''}
       </div>
-      <div class="section"><div class="section-title">📋 Order Details</div><div class="details-box">${order.order_details}</div></div>
+      <div class="section"><div class="section-title">📋 Order Details — #${order.order_number}</div><div class="details-box">${order.order_details}</div></div>
       <div class="section"><div class="section-title">📦 Pickup Information</div>
         <div class="pickup-box"><div class="pickup-date">📅 ${pickupDate}${formatTime(order.pickup_time) ? ` at ${formatTime(order.pickup_time)}` : ''}</div><div class="pickup-store">📍 ${order.pickup_store_name || 'TBD'}</div></div>
       </div>
@@ -193,7 +193,7 @@ const sendCustomerReadyEmail = async (order, storeName) => {
   return transporter.sendMail({
     from: EMAIL_FROM,
     to: order.customer_email,
-    subject: `Your order #${order.order_number} is ready for pickup!`,
+    subject: `[Order #${order.order_number}] Your order is ready for pickup!`,
     html,
   });
 };
@@ -214,7 +214,7 @@ const orderSummaryHtml = (order, heading, intro) => `<!DOCTYPE html><html><body 
         ${formatPrice(order.total_price) ? `<tr><td style="padding:8px;border-bottom:1px solid #eee">Total</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(formatPrice(order.total_price))}</td></tr>` : ''}
         <tr><td style="padding:8px">Payment</td><td style="padding:8px">${order.is_paid ? 'Paid' : 'Not paid'}</td></tr>
       </table>
-      <h3 style="margin-bottom:6px">Order details</h3><div style="white-space:pre-wrap;background:#f8fafc;padding:14px;border-radius:8px">${escapeHtml(order.order_details)}</div>
+      <h3 style="margin-bottom:6px">Order details — #${escapeHtml(order.order_number)}</h3><div style="white-space:pre-wrap;background:#f8fafc;padding:14px;border-radius:8px">${escapeHtml(order.order_details)}</div>
     </div></div></body></html>`;
 
 const sendOrderPlacedNotifications = async (order, createdByName) => {
@@ -236,7 +236,7 @@ const sendOrderPlacedNotifications = async (order, createdByName) => {
     notifications.push({ kind: 'factory', factory: true, promise: sendOrderEmail(order, originName) });
   }
   add('customer', order.customer_email,
-    `Order #${order.order_number} received`,
+    `[Order #${order.order_number}] Order received`,
     orderSummaryHtml(order, 'We received your custom order', `Hi ${order.customer_name}, your order has been placed successfully.`));
   add('origin store', order.store_email,
     `[Order #${order.order_number}] Order placed for ${originName}`,

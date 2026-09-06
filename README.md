@@ -110,7 +110,7 @@ SUPABASE_URL=https://PROJECT_REF.supabase.co
 SUPABASE_SECRET_KEY=sb_secret_your_secret_key
 
 JWT_SECRET=change_this_to_a_long_random_string
-JWT_EXPIRES_IN=8h
+JWT_EXPIRES_IN=30d
 
 FACTORY_EMAIL=your_factory_destination@example.com
 EMAIL_FROM=Krispy Kreme Custom Orders <orders@kkcustomorders.com>

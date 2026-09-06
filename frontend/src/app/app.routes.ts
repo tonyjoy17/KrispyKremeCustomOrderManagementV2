@@ -1,9 +1,9 @@
 import { Routes } from '@angular/router';
-import { authGuard, adminGuard } from './guards/auth.guard';
+import { authGuard, adminGuard, loginGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
-  { path: 'login', loadComponent: () => import('./pages/login/login.component').then(m => m.LoginComponent) },
+  { path: 'login', canActivate: [loginGuard], loadComponent: () => import('./pages/login/login.component').then(m => m.LoginComponent) },
 
   // Admin
   {

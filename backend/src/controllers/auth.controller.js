@@ -11,7 +11,7 @@ const login = async (req, res) => {
     if (!store || password !== store.password_hash) return res.status(401).json({ message: 'Invalid credentials' });
     const token = jwt.sign(
       { storeId: store.id, storeName: store.name, storeCode: store.store_code, username: store.username, isFactory: store.is_factory, isAdmin: store.is_admin },
-      process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+      process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
     );
     res.json({ token, store: { id: store.id, storeName: store.name, storeCode: store.store_code, username: store.username, isFactory: store.is_factory, isAdmin: store.is_admin } });
   } catch (error) { console.error('Login error:', error); res.status(500).json({ message: 'Server error during login' }); }

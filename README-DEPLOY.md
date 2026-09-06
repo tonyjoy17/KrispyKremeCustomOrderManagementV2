@@ -48,7 +48,7 @@ git push -u origin main
 | `SUPABASE_SECRET_KEY` | your backend-only `sb_secret_...` key |
 | `NODE_ENV` | `production` |
 | `JWT_SECRET` | (any long random string, e.g. `orderflow_super_secret_2024_xyz`) |
-| `JWT_EXPIRES_IN` | `8h` |
+| `JWT_EXPIRES_IN` | `30d` |
 | `FACTORY_EMAIL` | your factory email |
 | `EMAIL_FROM` | `Krispy Kreme Custom Orders <orders@kkcustomorders.com>` |
 | `SMTP_HOST` | `smtp.resend.com` |
