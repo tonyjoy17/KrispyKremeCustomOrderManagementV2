@@ -94,6 +94,7 @@ const getActivityLog = async (req, res) => {
       .order('created_at', { ascending: false }).range((page - 1) * limit, page * limit - 1);
     if (req.query.orderId) request = request.eq('order_id', req.query.orderId);
     const { data, error, count } = await request;
+    if (error?.code === 'PGRST205') return res.json({ logs: [], total: 0 });
     if (error) throw error;
     const logs = data.map(({ orders, ...log }) => ({ ...log, order_number: orders.order_number, customer_name: orders.customer_name }));
     res.json({ logs, total: count || 0 });

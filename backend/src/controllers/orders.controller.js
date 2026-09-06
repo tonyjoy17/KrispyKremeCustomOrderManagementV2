@@ -30,7 +30,15 @@ const pageValues = query => {
 };
 const logHistory = async (orderId, action, description, user) => {
   const { error } = await supabase.from('order_history').insert({ order_id: orderId, action, description, changed_by_id: user.storeId, changed_by_name: user.storeName });
-  if (error) throw error;
+  // Audit history must never turn a successful order write into a false error
+  // response. This also keeps older live schemas working until migrated.
+  if (error) console.error('Order history write failed:', error.message);
+};
+const generateOrderNumber = async () => {
+  let result = await supabase.rpc('next_order_number');
+  if (result.error?.code === 'PGRST202') result = await supabase.rpc('generate_order_number');
+  if (result.error) throw result.error;
+  return result.data;
 };
 const applyOrderFilters = (request, { filter, storeId, search, date }, factory = false) => {
   if (storeId) request = request.eq('store_id', storeId);
@@ -60,11 +68,10 @@ const createOrder = async (req, res) => {
       if (!storeResult.data) return res.status(400).json({ message: 'Select an active retail store' });
       orderStoreIdValue = storeResult.data.id;
     }
-    const numberResult = await supabase.rpc('next_order_number');
-    if (numberResult.error) throw numberResult.error;
+    const orderNumber = await generateOrderNumber();
     uploadedImagePath = await uploadOrderImage(req.file, orderStoreIdValue);
     const { data: order, error } = await supabase.from('orders').insert({
-      order_number: numberResult.data, store_id: orderStoreIdValue, customer_name: customerName.trim(),
+      order_number: orderNumber, store_id: orderStoreIdValue, customer_name: customerName.trim(),
       customer_phone: customerPhone.trim(), customer_email: customerEmail?.trim() || null,
       order_details: orderDetails.trim(), is_paid: isPaid === true || isPaid === 'true' || isPaid === 'yes',
       reference_image_path: uploadedImagePath, pickup_store_id: pickupStoreId,
@@ -140,6 +147,7 @@ const markOrderReceived = async (req, res) => {
 const getOrderHistory = async (req, res) => {
   try {
     const { data, error } = await supabase.from('order_history').select('*').eq('order_id', req.params.id).order('created_at');
+    if (error?.code === 'PGRST205') return res.json([]);
     if (error) throw error;
     res.json(data);
   } catch { res.status(500).json({ message: 'Failed to fetch history' }); }
