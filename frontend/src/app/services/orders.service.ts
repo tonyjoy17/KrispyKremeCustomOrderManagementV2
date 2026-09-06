@@ -15,6 +15,7 @@ export class OrdersService {
     formData.append('customerPhone', request.customerPhone);
     if (request.customerEmail) formData.append('customerEmail', request.customerEmail);
     formData.append('orderDetails', request.orderDetails);
+    formData.append('totalDozen', String(request.totalDozen));
     formData.append('isPaid', String(request.isPaid));
     formData.append('pickupStoreId', request.pickupStoreId);
     formData.append('pickupDate', request.pickupDate);

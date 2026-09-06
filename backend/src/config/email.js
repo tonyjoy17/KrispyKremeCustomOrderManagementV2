@@ -73,6 +73,7 @@ const sendOrderEmail = async (order, storeName) => {
         <div class="field"><span class="field-label">Phone</span><span class="field-value">${order.customer_phone}</span></div>
         ${order.customer_email ? `<div class="field"><span class="field-label">Email</span><span class="field-value">${order.customer_email}</span></div>` : ''}
         <div class="field"><span class="field-label">Payment</span><span class="field-value ${order.is_paid ? 'paid-yes' : 'paid-no'}">${order.is_paid ? '✓ PAID' : '✗ NOT PAID'}</span></div>
+        <div class="field"><span class="field-label">Total Dozen</span><span class="field-value">${order.total_dozen}</span></div>
         ${formatPrice(order.total_price) ? `<div class="field"><span class="field-label">Total Price</span><span class="field-value">${formatPrice(order.total_price)}</span></div>` : ''}
       </div>
       <div class="section"><div class="section-title">📋 Order Details — #${order.order_number}</div><div class="details-box">${order.order_details}</div></div>
@@ -211,6 +212,7 @@ const orderSummaryHtml = (order, heading, intro) => `<!DOCTYPE html><html><body 
         <tr><td style="padding:8px;border-bottom:1px solid #eee">Customer</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(order.customer_name)}</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #eee">Pickup</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(formatDate(order.pickup_date))}${formatTime(order.pickup_time) ? ` at ${escapeHtml(formatTime(order.pickup_time))}` : ''}</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #eee">Pickup store</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(order.pickup_store_name || 'TBD')}</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid #eee">Total dozen</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(order.total_dozen)}</td></tr>
         ${formatPrice(order.total_price) ? `<tr><td style="padding:8px;border-bottom:1px solid #eee">Total</td><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(formatPrice(order.total_price))}</td></tr>` : ''}
         <tr><td style="padding:8px">Payment</td><td style="padding:8px">${order.is_paid ? 'Paid' : 'Not paid'}</td></tr>
       </table>
@@ -261,7 +263,7 @@ const summaryRows = orders => orders.map(order => `<tr>
   <td style="padding:8px;border:1px solid #ddd">${escapeHtml(order.customer_name)}<br><small>${escapeHtml(order.customer_phone)}</small></td>
   <td style="padding:8px;border:1px solid #ddd">${escapeHtml(order.store?.name || '')}</td>
   <td style="padding:8px;border:1px solid #ddd">${escapeHtml(formatTime(order.pickup_time) || 'Any time')}</td>
-  <td style="padding:8px;border:1px solid #ddd;white-space:pre-wrap">${escapeHtml(order.order_details)}</td>
+  <td style="padding:8px;border:1px solid #ddd;white-space:pre-wrap"><b>${escapeHtml(order.total_dozen)} dozen</b><br>${escapeHtml(order.order_details)}</td>
   <td style="padding:8px;border:1px solid #ddd">${order.is_paid ? 'Paid' : 'Not paid'}${formatPrice(order.total_price) ? `<br>${escapeHtml(formatPrice(order.total_price))}` : ''}</td>
 </tr>`).join('');
 

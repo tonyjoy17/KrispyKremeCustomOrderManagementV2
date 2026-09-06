@@ -58,8 +58,11 @@ const applyOrderFilters = (request, { filter, storeId, search, date }, factory =
 const createOrder = async (req, res) => {
   let uploadedImagePath = null;
   try {
-    const { customerName, customerPhone, customerEmail, orderDetails, isPaid, pickupStoreId, pickupDate, pickupTime, totalPrice, orderStoreId } = req.body;
-    if (!customerName || !customerPhone || !orderDetails || !pickupStoreId || !pickupDate) return res.status(400).json({ message: 'Missing required fields' });
+    const { customerName, customerPhone, customerEmail, orderDetails, totalDozen, isPaid, pickupStoreId, pickupDate, pickupTime, totalPrice, orderStoreId } = req.body;
+    const parsedTotalDozen = Number(totalDozen);
+    if (!customerName || !customerPhone || !orderDetails || !pickupStoreId || !pickupDate || !Number.isInteger(parsedTotalDozen) || parsedTotalDozen <= 0) {
+      return res.status(400).json({ message: 'Complete all required fields; total dozen must be a whole number greater than zero' });
+    }
     const parsedTotalPrice = totalPrice === undefined || totalPrice === '' ? null : Number(totalPrice);
     if (parsedTotalPrice !== null && (!Number.isFinite(parsedTotalPrice) || parsedTotalPrice < 0)) return res.status(400).json({ message: 'Total price cannot be negative' });
     let orderStoreIdValue = req.user.storeId;
@@ -74,14 +77,17 @@ const createOrder = async (req, res) => {
     }
     const orderNumber = await generateOrderNumber();
     uploadedImagePath = await uploadOrderImage(req.file, orderStoreIdValue);
-    const { data: order, error } = await supabase.from('orders').insert({
+    const orderRecord = {
       order_number: orderNumber, store_id: orderStoreIdValue, customer_name: customerName.trim(),
       customer_phone: customerPhone.trim(), customer_email: customerEmail?.trim() || null,
-      order_details: orderDetails.trim(), is_paid: isPaid === true || isPaid === 'true' || isPaid === 'yes',
+      order_details: orderDetails.trim(), total_dozen: parsedTotalDozen,
+      is_paid: isPaid === true || isPaid === 'true' || isPaid === 'yes',
       reference_image_path: uploadedImagePath, pickup_store_id: pickupStoreId,
       pickup_date: pickupDate, pickup_time: pickupTime || null, total_price: parsedTotalPrice, created_by: req.user.storeId,
-    }).select(ORDER_SELECT).single();
-    if (error) throw error;
+    };
+    const insertResult = await supabase.from('orders').insert(orderRecord).select(ORDER_SELECT).single();
+    if (insertResult.error) throw insertResult.error;
+    const order = insertResult.data;
     const detailed = asDetailed(order);
     await logHistory(order.id, 'created', 'Order created', req.user);
     sendOrderPlacedNotifications(detailed, req.user.storeName).then(async result => {
@@ -103,12 +109,15 @@ const editOrder = async (req, res) => {
     const old = asDetailed(raw);
     if (!req.user.isFactory && !req.user.isAdmin && old.store_id !== req.user.storeId) return res.status(403).json({ message: 'Access denied' });
     if (['completed', 'cancelled'].includes(old.status)) return res.status(400).json({ message: 'Cannot edit completed or cancelled orders' });
-    const { customerName, customerPhone, customerEmail, orderDetails, isPaid, pickupStoreId, pickupDate, pickupTime, totalPrice, notes } = req.body;
+    const { customerName, customerPhone, customerEmail, orderDetails, totalDozen, isPaid, pickupStoreId, pickupDate, pickupTime, totalPrice, notes } = req.body;
     const changes = [];
     if (customerName && customerName !== old.customer_name) changes.push(`Customer name: "${old.customer_name}" → "${customerName}"`);
     if (customerPhone && customerPhone !== old.customer_phone) changes.push(`Phone: "${old.customer_phone}" → "${customerPhone}"`);
     if (customerEmail !== undefined && customerEmail !== old.customer_email) changes.push('Email changed');
     if (orderDetails && orderDetails !== old.order_details) changes.push('Order details updated');
+    const parsedTotalDozen = totalDozen === undefined ? undefined : Number(totalDozen);
+    if (totalDozen !== undefined && (!Number.isInteger(parsedTotalDozen) || parsedTotalDozen <= 0)) return res.status(400).json({ message: 'Total dozen must be a whole number greater than zero' });
+    if (parsedTotalDozen !== undefined && parsedTotalDozen !== old.total_dozen) changes.push(`Total dozen: ${old.total_dozen} → ${parsedTotalDozen}`);
     const newIsPaid = isPaid === true || isPaid === 'true' || isPaid === 'yes';
     if (isPaid !== undefined && newIsPaid !== old.is_paid) changes.push(`Payment: ${old.is_paid ? 'Paid' : 'Unpaid'} → ${newIsPaid ? 'Paid' : 'Unpaid'}`);
     if (pickupDate && pickupDate !== old.pickup_date) changes.push('Pickup date changed');
@@ -123,6 +132,7 @@ const editOrder = async (req, res) => {
     if (customerPhone) update.customer_phone = customerPhone.trim();
     if (customerEmail !== undefined) update.customer_email = customerEmail?.trim() || null;
     if (orderDetails) update.order_details = orderDetails.trim();
+    if (parsedTotalDozen !== undefined) update.total_dozen = parsedTotalDozen;
     if (isPaid !== undefined) update.is_paid = newIsPaid;
     if (pickupStoreId) update.pickup_store_id = pickupStoreId;
     if (pickupDate) update.pickup_date = pickupDate;

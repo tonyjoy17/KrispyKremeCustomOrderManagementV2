@@ -63,6 +63,10 @@ import { Order } from '../../../models';
             <textarea [(ngModel)]="form.orderDetails" rows="5" placeholder="Describe the order..."></textarea>
           </div>
           <div class="field">
+            <label>Total Dozen *</label>
+            <input type="number" [(ngModel)]="form.totalDozen" min="1" step="1" inputmode="numeric" />
+          </div>
+          <div class="field">
             <label>Internal Notes <span class="opt">(not sent to customer)</span></label>
             <textarea [(ngModel)]="form.notes" rows="2" placeholder="Any notes for the factory..."></textarea>
           </div>
@@ -153,7 +157,7 @@ export class EditOrderComponent implements OnInit {
 
   form = {
     customerName: '', customerPhone: '', customerEmail: '',
-    orderDetails: '', notes: '', isPaid: false,
+    orderDetails: '', totalDozen: null as number | null, notes: '', isPaid: false,
     pickupStoreId: '', pickupDate: '', pickupTime: '', totalPrice: null as number | null
   };
 
@@ -174,6 +178,7 @@ export class EditOrderComponent implements OnInit {
           customerPhone: o.customer_phone || o.customerPhone || '',
           customerEmail: o.customer_email || o.customerEmail || '',
           orderDetails: o.order_details || o.orderDetails || '',
+          totalDozen: o.total_dozen ?? o.totalDozen ?? null,
           notes: o.notes || '',
           isPaid: o.is_paid ?? o.isPaid ?? false,
           pickupStoreId: o.pickup_store_id || o.pickupStoreId || '',
@@ -195,7 +200,7 @@ export class EditOrderComponent implements OnInit {
 
   saveOrder() {
     this.error = ''; this.success = '';
-    if (!this.form.customerName || !this.form.customerPhone || !this.form.orderDetails || !this.form.pickupStoreId || !this.form.pickupDate) {
+    if (!this.form.customerName || !this.form.customerPhone || !this.form.orderDetails || !Number.isInteger(Number(this.form.totalDozen)) || Number(this.form.totalDozen) <= 0 || !this.form.pickupStoreId || !this.form.pickupDate) {
       this.error = 'Please fill all required fields'; return;
     }
     this.saving = true;

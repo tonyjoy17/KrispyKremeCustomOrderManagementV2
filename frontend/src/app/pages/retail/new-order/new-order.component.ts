@@ -101,6 +101,13 @@ import { CreateOrderRequest } from '../../../models';
               <span class="error-text" *ngIf="submitted && !form.orderDetails">Required</span>
             </div>
 
+            <div class="field" [class.has-error]="submitted && !validTotalDozen">
+              <label>Total Dozen <span class="req">*</span></label>
+              <input type="number" [(ngModel)]="form.totalDozen" name="totalDozen"
+                min="1" step="1" inputmode="numeric" placeholder="e.g. 3" [disabled]="loading" />
+              <span class="error-text" *ngIf="submitted && !validTotalDozen">Enter a whole number greater than 0</span>
+            </div>
+
             <div class="fields-grid two-col">
               <div class="field" [class.has-error]="submitted && !form.pickupStoreId">
                 <label>Pickup Store <span class="req">*</span></label>
@@ -353,7 +360,7 @@ export class NewOrderComponent implements OnInit {
     this.submitted = true;
     this.error = '';
 
-    if ((this.isAdmin && !this.form.orderStoreId) || !this.form.customerName || !this.form.customerPhone || !this.form.orderDetails
+    if ((this.isAdmin && !this.form.orderStoreId) || !this.form.customerName || !this.form.customerPhone || !this.form.orderDetails || !this.validTotalDozen
       || !this.form.pickupStoreId || !this.form.pickupDate || this.form.isPaid === null || this.form.isPaid === undefined) {
       this.error = 'Please fill in all required fields';
       return;
@@ -365,6 +372,7 @@ export class NewOrderComponent implements OnInit {
       customerPhone: this.form.customerPhone!,
       customerEmail: this.form.customerEmail,
       orderDetails: this.form.orderDetails!,
+      totalDozen: Number(this.form.totalDozen),
       isPaid: this.form.isPaid!,
       pickupStoreId: this.form.pickupStoreId!,
       pickupDate: this.form.pickupDate!,
@@ -394,5 +402,9 @@ export class NewOrderComponent implements OnInit {
     this.submitted = false;
     this.error = '';
     this.success = false;
+  }
+
+  get validTotalDozen(): boolean {
+    return Number.isInteger(Number(this.form.totalDozen)) && Number(this.form.totalDozen) > 0;
   }
 }

@@ -34,14 +34,14 @@ export interface Order {
   status: OrderStatus;
   orderNumber?: string; storeId?: string; storeName?: string; storeCode?: string;
   customerName?: string; customerPhone?: string; customerEmail?: string;
-  orderDetails?: string; isPaid?: boolean; referenceImagePath?: string;
+  orderDetails?: string; totalDozen?: number; isPaid?: boolean; referenceImagePath?: string;
   pickupStoreId?: string; pickupStoreName?: string; pickupStoreCode?: string;
   pickupDate?: string; pickupTime?: string; totalPrice?: number; emailSent?: boolean; notes?: string;
   customerNotified?: boolean; customerNotifiedAt?: string;
   createdAt?: string; updatedAt?: string;
   order_number?: string; store_id?: string; store_name?: string; store_code?: string;
   customer_name?: string; customer_phone?: string; customer_email?: string;
-  order_details?: string; is_paid?: boolean; reference_image_path?: string;
+  order_details?: string; total_dozen?: number; is_paid?: boolean; reference_image_path?: string;
   pickup_store_id?: string; pickup_store_name?: string; pickup_store_code?: string;
   pickup_date?: string; pickup_time?: string; total_price?: number; email_sent?: boolean; customer_notified?: boolean;
   customer_notified_at?: string; created_at?: string; updated_at?: string;
@@ -65,7 +65,7 @@ export interface SystemSettings {
 
 export interface CreateOrderRequest {
   customerName: string; customerPhone: string; customerEmail?: string;
-  orderDetails: string; isPaid: boolean; pickupStoreId: string;
+  orderDetails: string; totalDozen: number; isPaid: boolean; pickupStoreId: string;
   pickupDate: string; pickupTime?: string; totalPrice?: number; referenceImage?: File; orderStoreId?: string;
 }
 

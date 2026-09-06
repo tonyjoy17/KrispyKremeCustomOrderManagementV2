@@ -83,6 +83,7 @@ import { FormsModule } from '@angular/forms';
 
             <div class="section">
               <div class="sec-title">Order Details</div>
+              <div class="info-row"><span class="label">Total Dozen</span><span class="val">{{ order.total_dozen ?? order.totalDozen }}</span></div>
               <div class="details-box">{{ order.order_details }}</div>
             </div>
 

@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_phone VARCHAR(20) NOT NULL,
   customer_email VARCHAR(100),
   order_details TEXT NOT NULL,
+  total_dozen INTEGER NOT NULL CHECK (total_dozen > 0),
   is_paid BOOLEAN NOT NULL DEFAULT FALSE,
   reference_image_path TEXT,
   pickup_store_id UUID NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
@@ -77,20 +78,6 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_notified_at TIMESTAMP WITH 
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS pickup_time TIME;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS total_price NUMERIC(10,2);
 ALTER TABLE orders ALTER COLUMN reference_image_path TYPE TEXT;
-
--- Compatibility with the earlier OrderFlow schema. Keep any existing values,
--- while allowing this version (which has no total_dozen field) to create orders.
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'orders'
-      AND column_name = 'total_dozen'
-  ) THEN
-    ALTER TABLE public.orders ALTER COLUMN total_dozen SET DEFAULT 0;
-  END IF;
-END $$;
 
 -- =============================================
 -- ORDER HISTORY TABLE
