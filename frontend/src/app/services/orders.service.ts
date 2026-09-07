@@ -40,6 +40,9 @@ export class OrdersService {
   }
 
   getFactoryDashboard(): Observable<FactoryDashboardData> { return this.http.get<FactoryDashboardData>(`${this.API}/factory/dashboard`); }
+  getProductionSheet(date: string): Observable<{ date: string; orders: Order[]; totalOrders: number; totalDozen: number }> {
+    return this.http.get<{ date: string; orders: Order[]; totalOrders: number; totalDozen: number }>(`${this.API}/factory/production-sheet`, { params: { date } });
+  }
 
   getFactoryOrders(filter='all', page=1, storeId?: string, search='', date=''): Observable<OrdersResponse> {
     let params = new HttpParams().set('filter', filter).set('page', page).set('limit', 20);

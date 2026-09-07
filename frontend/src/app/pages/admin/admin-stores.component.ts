@@ -10,36 +10,37 @@ import { AdminService } from '../../services/admin.service';
   template: `
     <div class="page">
       <div class="page-header">
-        <div><h1>Manage Stores</h1><p>{{ stores.length }} accounts registered</p></div>
+        <div><h1>Manage Stores &amp; Users</h1><p>{{ stores.length }} accounts registered</p></div>
         <button class="btn-primary" (click)="showForm=!showForm">
           <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-          {{ showForm ? 'Cancel' : 'Add Store' }}
+          {{ showForm ? 'Cancel' : 'Add Account' }}
         </button>
       </div>
 
       <!-- Register Form -->
       <div class="form-card" *ngIf="showForm">
-        <h3>Register New Store</h3>
+        <h3>Register New Account</h3>
         <div class="form-grid">
-          <div class="field"><label>Store Name *</label><input [(ngModel)]="form.name" placeholder="e.g. KK West Croydon" /></div>
-          <div class="field"><label>Store Code *</label><input [(ngModel)]="form.storeCode" placeholder="e.g. KKWC" style="text-transform:uppercase" /></div>
+          <div class="field"><label>Account Name *</label><input [(ngModel)]="form.name" placeholder="e.g. KK West Croydon or Production Admin" /></div>
+          <div class="field"><label>Account Code *</label><input [(ngModel)]="form.storeCode" placeholder="e.g. KKWC or ADMIN2" style="text-transform:uppercase" /></div>
           <div class="field"><label>Username *</label><input [(ngModel)]="form.username" placeholder="login username" /></div>
           <div class="field"><label>Password *</label><input [(ngModel)]="form.password" placeholder="initial password" /></div>
-          <div class="field"><label>Email</label><input [(ngModel)]="form.email" placeholder="store email" type="email" /></div>
+          <div class="field"><label>Email</label><input [(ngModel)]="form.email" placeholder="account email" type="email" /></div>
           <div class="field"><label>Phone</label><input [(ngModel)]="form.phone" placeholder="phone number" /></div>
-          <div class="field full"><label>Address</label><input [(ngModel)]="form.address" placeholder="store address" /></div>
+          <div class="field full"><label>Address</label><input [(ngModel)]="form.address" placeholder="account or store address" /></div>
           <div class="field">
             <label>Account Type</label>
-            <select [(ngModel)]="form.isFactory">
-              <option [ngValue]="false">Retail Store</option>
-              <option [ngValue]="true">Factory</option>
+            <select [(ngModel)]="form.accountType">
+              <option value="retail">Retail Store</option>
+              <option value="factory">Factory</option>
+              <option value="admin">Administrator</option>
             </select>
           </div>
         </div>
         <div class="error-msg" *ngIf="formError">{{ formError }}</div>
         <div class="success-msg" *ngIf="formSuccess">{{ formSuccess }}</div>
         <button class="btn-primary" (click)="registerStore()" [disabled]="formLoading">
-          {{ formLoading ? 'Registering...' : 'Register Store' }}
+          {{ formLoading ? 'Registering...' : 'Register Account' }}
         </button>
       </div>
 
@@ -63,7 +64,7 @@ import { AdminService } from '../../services/admin.service';
         <div *ngIf="!loading && stores.length === 0" class="empty">No stores registered yet.</div>
         <div *ngIf="!loading && stores.length > 0">
           <div class="table-head">
-            <span>Store</span><span>Code</span><span>Username</span><span>Type</span><span>Status</span><span>Created</span><span>Actions</span>
+            <span>Account</span><span>Account Code</span><span>Username</span><span>Type</span><span>Status</span><span>Created</span><span>Actions</span>
           </div>
           <div class="table-row" *ngFor="let s of stores">
             <span class="store-name">{{ s.name }}</span>
@@ -81,7 +82,7 @@ import { AdminService } from '../../services/admin.service';
             </span>
             <span class="date-text">{{ s.created_at | date:'d MMM y' }}</span>
             <span class="actions">
-              <button class="act-btn reset" (click)="openReset(s)" [disabled]="s.is_admin" title="Reset Password">🔑</button>
+              <button class="act-btn reset" (click)="openReset(s)" title="Reset Password">🔑</button>
               <button class="act-btn toggle" (click)="toggleStore(s)" [disabled]="s.is_admin" [title]="s.is_active?'Deactivate':'Activate'">
                 {{ s.is_active ? '🔒' : '🔓' }}
               </button>
@@ -163,7 +164,7 @@ export class AdminStoresComponent implements OnInit {
   resetError = '';
   resetLoading = false;
 
-  form = { name: '', storeCode: '', username: '', password: '', email: '', phone: '', address: '', isFactory: false };
+  form = { name: '', storeCode: '', username: '', password: '', email: '', phone: '', address: '', accountType: 'retail' };
 
   constructor(private adminService: AdminService) {}
 
@@ -179,7 +180,7 @@ export class AdminStoresComponent implements OnInit {
     if (!this.form.name || !this.form.storeCode || !this.form.username || !this.form.password) { this.formError = 'All required fields must be filled'; return; }
     this.formLoading = true;
     this.adminService.registerStore(this.form).subscribe({
-      next: () => { this.formSuccess = 'Store registered successfully!'; this.form = { name:'',storeCode:'',username:'',password:'',email:'',phone:'',address:'',isFactory:false }; this.loadStores(); this.formLoading = false; },
+      next: () => { this.formSuccess = 'Account registered successfully!'; this.form = { name:'',storeCode:'',username:'',password:'',email:'',phone:'',address:'',accountType:'retail' }; this.loadStores(); this.formLoading = false; },
       error: (e) => { this.formError = e.error?.message || 'Failed to register'; this.formLoading = false; }
     });
   }

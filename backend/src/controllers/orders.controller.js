@@ -266,6 +266,21 @@ const deleteOrder = async (req, res) => {
   } catch { res.status(500).json({ message: 'Failed to delete order' }); }
 };
 
+const getProductionSheet = async (req, res) => {
+  try {
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : adelaideDate(1);
+    const { data, error } = await supabase.from('orders').select(ORDER_SELECT)
+      .eq('pickup_date', date).neq('status', 'cancelled')
+      .order('pickup_store_id').order('pickup_time', { ascending: true, nullsFirst: false }).order('order_number');
+    if (error) throw error;
+    const orders = (data || []).map(asDetailed);
+    res.json({ date, orders, totalOrders: orders.length, totalDozen: orders.reduce((sum, order) => sum + Number(order.total_dozen || 0), 0) });
+  } catch (error) {
+    console.error('Production sheet error:', error);
+    res.status(500).json({ message: 'Failed to load production sheet' });
+  }
+};
+
 const getOrder = async (req, res) => {
   try {
     const { data, error } = await supabase.from('orders').select(ORDER_SELECT).eq('id', req.params.id).maybeSingle();
@@ -278,4 +293,4 @@ const getOrder = async (req, res) => {
   } catch { res.status(500).json({ message: 'Failed to fetch order' }); }
 };
 
-module.exports = { createOrder, editOrder, markOrderReceived, getOrderHistory, getRetailOrders, getRetailDashboard, getFactoryDashboard, getAllOrders, updateOrderStatus, deleteOrder, getOrder };
+module.exports = { createOrder, editOrder, markOrderReceived, getOrderHistory, getRetailOrders, getRetailDashboard, getFactoryDashboard, getAllOrders, getProductionSheet, updateOrderStatus, deleteOrder, getOrder };

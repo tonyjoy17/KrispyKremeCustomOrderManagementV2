@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const { authenticate, requireFactory, requireAdmin } = require('../middleware/auth');
-const { createOrder, editOrder, markOrderReceived, getOrderHistory, getRetailOrders, getRetailDashboard, getFactoryDashboard, getAllOrders, updateOrderStatus, deleteOrder, getOrder } = require('../controllers/orders.controller');
+const { createOrder, editOrder, markOrderReceived, getOrderHistory, getRetailOrders, getRetailDashboard, getFactoryDashboard, getAllOrders, getProductionSheet, updateOrderStatus, deleteOrder, getOrder } = require('../controllers/orders.controller');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE || '5242880') }, fileFilter: (req, file, cb) => {
   const ok = /jpeg|jpg|png|gif|webp/.test(path.extname(file.originalname).toLowerCase());
@@ -21,6 +21,7 @@ router.get('/retail/orders', authenticate, getRetailOrders);
 // Factory
 router.get('/factory/dashboard', authenticate, requireFactory, getFactoryDashboard);
 router.get('/factory/orders', authenticate, requireFactory, getAllOrders);
+router.get('/factory/production-sheet', authenticate, requireFactory, getProductionSheet);
 router.put('/:id/status', authenticate, requireFactory, updateOrderStatus);
 
 // Admin

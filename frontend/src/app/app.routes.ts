@@ -11,9 +11,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/admin/admin-layout.component').then(m => m.AdminLayoutComponent),
     canActivate: [adminGuard],
     children: [
-      { path: '', redirectTo: 'stores', pathMatch: 'full' },
+      { path: '', redirectTo: 'orders', pathMatch: 'full' },
       { path: 'new-order', loadComponent: () => import('./pages/retail/new-order/new-order.component').then(m => m.NewOrderComponent) },
       { path: 'orders', loadComponent: () => import('./pages/factory/orders/factory-orders.component').then(m => m.FactoryOrdersComponent) },
+      { path: 'production-sheet', loadComponent: () => import('./pages/factory/production-sheet/production-sheet.component').then(m => m.ProductionSheetComponent) },
       { path: 'orders/:id', loadComponent: () => import('./pages/order-detail/order-detail.component').then(m => m.OrderDetailComponent) },
       { path: 'stores', loadComponent: () => import('./pages/admin/admin-stores.component').then(m => m.AdminStoresComponent) },
       { path: 'settings', loadComponent: () => import('./pages/admin/admin-settings.component').then(m => m.AdminSettingsComponent) },
@@ -45,8 +46,8 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', loadComponent: () => import('./pages/factory/dashboard/factory-dashboard.component').then(m => m.FactoryDashboardComponent) },
       { path: 'orders', loadComponent: () => import('./pages/factory/orders/factory-orders.component').then(m => m.FactoryOrdersComponent) },
+      { path: 'production-sheet', loadComponent: () => import('./pages/factory/production-sheet/production-sheet.component').then(m => m.ProductionSheetComponent) },
       { path: 'orders/:id', loadComponent: () => import('./pages/order-detail/order-detail.component').then(m => m.OrderDetailComponent) },
-      { path: 'stores', loadComponent: () => import('./pages/factory/stores/stores.component').then(m => m.StoresComponent) },
     ]
   },
 

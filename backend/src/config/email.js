@@ -38,51 +38,48 @@ const sendOrderEmail = async (order, storeName) => {
   if (!enabled) return { skipped: true };
 
   const pickupDate = formatDate(order.pickup_date);
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-    body{font-family:'Segoe UI',Arial,sans-serif;background:#f5f5f5;margin:0;padding:0}
-    .container{max-width:600px;margin:30px auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1)}
-    .header{background:linear-gradient(135deg,#8B0000 0%,#E4002B 100%);padding:32px;text-align:center}
-    .header h1{color:white;margin:0;font-size:24px;font-weight:700}
-    .header p{color:#94a3b8;margin:8px 0 0;font-size:14px}
-    .badge{display:inline-block;background:#f59e0b;color:white;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;margin-top:12px}
-    .body{padding:32px}
-    .order-number{background:#f0f9ff;border-left:4px solid #0ea5e9;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px}
-    .order-number h2{margin:0;color:#0ea5e9;font-size:20px}
-    .order-number p{margin:4px 0 0;color:#64748b;font-size:13px}
-    .section{margin-bottom:24px}
-    .section-title{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
-    .field{display:flex;padding:10px 0;border-bottom:1px solid #f1f5f9}
-    .field:last-child{border-bottom:none}
-    .field-label{width:140px;font-size:13px;color:#94a3b8;font-weight:500;flex-shrink:0}
-    .field-value{font-size:14px;color:#1e293b;font-weight:500}
-    .paid-yes{color:#10b981;font-weight:700}
-    .paid-no{color:#ef4444;font-weight:700}
-    .details-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap}
-    .pickup-box{background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:1px solid #a7f3d0;border-radius:8px;padding:16px 20px}
-    .pickup-date{font-size:18px;font-weight:700;color:#065f46}
-    .pickup-store{font-size:14px;color:#059669;margin-top:4px}
-    .footer{background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;text-align:center}
-    .footer p{margin:0;color:#94a3b8;font-size:12px}
-  </style></head><body>
-  <div class="container">
-    <div class="header"><h1>New Custom Order Received</h1><p>Submitted by ${storeName}</p><span class="badge">Action Required</span></div>
-    <div class="body">
-      <div class="order-number"><h2>Order #${order.order_number}</h2><p>Received ${new Date(order.created_at).toLocaleString('en-AU')}</p></div>
-      <div class="section"><div class="section-title">👤 Customer Information</div>
-        <div class="field"><span class="field-label">Name</span><span class="field-value">${order.customer_name}</span></div>
-        <div class="field"><span class="field-label">Phone</span><span class="field-value">${order.customer_phone}</span></div>
-        ${order.customer_email ? `<div class="field"><span class="field-label">Email</span><span class="field-value">${order.customer_email}</span></div>` : ''}
-        <div class="field"><span class="field-label">Payment</span><span class="field-value ${order.is_paid ? 'paid-yes' : 'paid-no'}">${order.is_paid ? '✓ PAID' : '✗ NOT PAID'}</span></div>
-        <div class="field"><span class="field-label">Total Dozen</span><span class="field-value">${order.total_dozen}</span></div>
-        ${formatPrice(order.total_price) ? `<div class="field"><span class="field-label">Total Price</span><span class="field-value">${formatPrice(order.total_price)}</span></div>` : ''}
-      </div>
-      <div class="section"><div class="section-title">📋 Order Details — #${order.order_number}</div><div class="details-box">${order.order_details}</div></div>
-      <div class="section"><div class="section-title">📦 Pickup Information</div>
-        <div class="pickup-box"><div class="pickup-date">📅 ${pickupDate}${formatTime(order.pickup_time) ? ` at ${formatTime(order.pickup_time)}` : ''}</div><div class="pickup-store">📍 ${order.pickup_store_name || 'TBD'}</div></div>
-      </div>
-    </div>
-    <div class="footer"><p>🍩 Krispy Kreme SA Order Management OrderFlow Retail Order Management &bull; Automated notificationbull; Automated notification</p></div>
-  </div></body></html>`;
+  const receivedAt = new Date(order.created_at).toLocaleString('en-AU', { timeZone: APP_TIME_ZONE });
+  const row = (label, value, colour = '#1f2937') => `<tr>
+    <td width="145" valign="top" style="width:145px;padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#64748b;font-size:13px;font-weight:600">${label}</td>
+    <td valign="top" style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:${colour};font-size:14px;font-weight:600">${value}</td>
+  </tr>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,'Segoe UI',sans-serif;color:#1f2937">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f3f4f6" style="width:100%;background-color:#f3f4f6">
+      <tr><td align="center" style="padding:28px 12px">
+        <!--[if mso]><table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="width:100%;max-width:640px;background-color:#ffffff;border:1px solid #e5e7eb">
+          <tr><td align="center" bgcolor="#c8102e" style="padding:28px 24px;background-color:#c8102e;color:#ffffff">
+            <div style="font-size:25px;line-height:32px;font-weight:700;color:#ffffff">New Custom Order Received</div>
+            <div style="padding-top:8px;font-size:14px;line-height:20px;color:#ffffff">Submitted by ${escapeHtml(storeName)}</div>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px"><tr><td bgcolor="#f59e0b" style="padding:6px 14px;background-color:#f59e0b;color:#ffffff;font-size:12px;font-weight:700">ACTION REQUIRED</td></tr></table>
+          </td></tr>
+          <tr><td style="padding:28px 28px 8px">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#eaf6ff" style="width:100%;background-color:#eaf6ff;border-left:5px solid #0ea5e9">
+              <tr><td style="padding:16px 18px"><div style="font-size:21px;line-height:28px;font-weight:700;color:#0369a1">Order #${escapeHtml(order.order_number)}</div><div style="padding-top:4px;font-size:13px;color:#475569">Received ${escapeHtml(receivedAt)}</div></td></tr>
+            </table>
+          </td></tr>
+          <tr><td style="padding:18px 28px 6px;color:#475569;font-size:12px;font-weight:700;letter-spacing:1px">CUSTOMER INFORMATION</td></tr>
+          <tr><td style="padding:0 28px 18px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%">
+            ${row('Name', escapeHtml(order.customer_name))}
+            ${row('Phone', escapeHtml(order.customer_phone))}
+            ${order.customer_email ? row('Email', escapeHtml(order.customer_email)) : ''}
+            ${row('Payment', order.is_paid ? 'PAID' : 'NOT PAID', order.is_paid ? '#047857' : '#b91c1c')}
+            ${row('Total Dozen', escapeHtml(order.total_dozen))}
+            ${formatPrice(order.total_price) ? row('Total Price', escapeHtml(formatPrice(order.total_price))) : ''}
+          </table></td></tr>
+          <tr><td style="padding:4px 28px 10px;color:#475569;font-size:12px;font-weight:700;letter-spacing:1px">ORDER DETAILS — #${escapeHtml(order.order_number)}</td></tr>
+          <tr><td style="padding:0 28px 24px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f8fafc" style="width:100%;background-color:#f8fafc;border:1px solid #dbe3ec"><tr><td style="padding:16px;color:#334155;font-size:14px;line-height:22px;white-space:pre-wrap">${escapeHtml(order.order_details)}</td></tr></table></td></tr>
+          <tr><td style="padding:0 28px 10px;color:#475569;font-size:12px;font-weight:700;letter-spacing:1px">PICKUP INFORMATION</td></tr>
+          <tr><td style="padding:0 28px 28px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ecfdf5" style="width:100%;background-color:#ecfdf5;border:1px solid #86efac">
+            <tr><td style="padding:16px 18px;color:#065f46"><div style="font-size:18px;line-height:25px;font-weight:700;color:#065f46">${escapeHtml(pickupDate)}${formatTime(order.pickup_time) ? ` at ${escapeHtml(formatTime(order.pickup_time))}` : ''}</div><div style="padding-top:6px;font-size:14px;color:#047857">${escapeHtml(order.pickup_store_name || 'TBD')}</div></td></tr>
+          </table></td></tr>
+          <tr><td align="center" bgcolor="#f8fafc" style="padding:18px 24px;border-top:1px solid #e5e7eb;background-color:#f8fafc;color:#64748b;font-size:12px">Krispy Kreme SA</td></tr>
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td></tr>
+    </table>
+  </body></html>`;
 
   return transporter.sendMail({
     from: EMAIL_FROM,
@@ -132,7 +129,7 @@ const sendOrderUpdatedEmail = async (order, storeName, changes) => {
       <div class="field"><span class="field-label">Pickup Store</span><span class="field-value">${order.pickup_store_name || 'TBD'}</span></div>
       <div class="field"><span class="field-label">Status</span><span class="field-value">${order.status}</span></div>
     </div>
-    <div class="footer"><p>🍩 Krispy Kreme SA Order Management OrderFlow Retail Order Management &bull; Automated notificationbull; Automated notification</p></div>
+    <div class="footer"><p>Krispy Kreme SA</p></div>
   </div></body></html>`;
 
   return transporter.sendMail({
@@ -188,7 +185,7 @@ const sendCustomerReadyEmail = async (order, storeName) => {
       </div>
       <p style="font-size:13px;color:#64748b">Please bring this email or your order number when collecting.</p>
     </div>
-    <div class="footer"><p>🍩 Krispy Kreme SA Order Management OrderFlow Retail Order Management &bull; Automated notificationbull; Automated notification</p></div>
+    <div class="footer"><p>Krispy Kreme SA</p></div>
   </div></body></html>`;
 
   return transporter.sendMail({

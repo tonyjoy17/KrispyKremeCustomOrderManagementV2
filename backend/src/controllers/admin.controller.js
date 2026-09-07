@@ -40,15 +40,17 @@ const getAllStores = async (_req, res) => {
 
 const registerStore = async (req, res) => {
   try {
-    const { name, storeCode, username, password, email, phone, address, isFactory } = req.body;
+    const { name, storeCode, username, password, email, phone, address, accountType, isFactory, isAdmin } = req.body;
     if (!name || !storeCode || !username || !password) return res.status(400).json({ message: 'Name, code, username and password required' });
+    const adminAccount = accountType === 'admin' || isAdmin === true || isAdmin === 'true';
+    const factoryAccount = !adminAccount && (accountType === 'factory' || isFactory === true || isFactory === 'true');
     const record = {
       name: name.trim(), store_code: storeCode.trim().toUpperCase(), username: username.trim().toLowerCase(),
       password_hash: password, email: email?.trim() || null, phone: phone?.trim() || null,
-      address: address?.trim() || null, is_factory: isFactory === true || isFactory === 'true',
+      address: address?.trim() || null, is_factory: factoryAccount, is_admin: adminAccount,
     };
     const { data, error } = await supabase.from('stores').insert(record)
-      .select('id,name,store_code,username,email,is_factory,is_active,created_at').single();
+      .select('id,name,store_code,username,email,is_factory,is_admin,is_active,created_at').single();
     if (error?.code === '23505') return res.status(409).json({ message: 'Username, code or name already exists' });
     if (error) throw error;
     res.status(201).json({ message: 'Store registered', store: data });
