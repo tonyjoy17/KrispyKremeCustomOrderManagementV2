@@ -18,6 +18,7 @@ export const routes: Routes = [
       { path: 'orders/:id', loadComponent: () => import('./pages/order-detail/order-detail.component').then(m => m.OrderDetailComponent) },
       { path: 'stores', loadComponent: () => import('./pages/admin/admin-stores.component').then(m => m.AdminStoresComponent) },
       { path: 'settings', loadComponent: () => import('./pages/admin/admin-settings.component').then(m => m.AdminSettingsComponent) },
+      { path: 'change-password', loadComponent: () => import('./pages/admin/change-password.component').then(m => m.ChangePasswordComponent) },
       { path: 'activity', loadComponent: () => import('./pages/admin/admin-activity.component').then(m => m.AdminActivityComponent) },
     ]
   },

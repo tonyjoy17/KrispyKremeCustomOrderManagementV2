@@ -41,4 +41,7 @@ export class AuthService {
   }
 
   getToken(): string | null { return localStorage.getItem('auth_token'); }
+  changePassword(currentPassword: string, newPassword: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.API}/change-password`, { currentPassword, newPassword });
+  }
 }

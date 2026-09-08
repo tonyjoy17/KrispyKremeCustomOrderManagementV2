@@ -100,6 +100,7 @@ The schema itself is installed in the Supabase SQL Editor in Step 2.
 
 5. Click **Create Static Site** — wait for build (~3-5 mins)
 6. Copy your frontend URL e.g. `https://orderflow-frontend.onrender.com`
+7. Under **Headers**, add `Cache-Control: no-cache` for path `/*`. This prevents cached HTML from referencing JavaScript chunks removed by a newer deployment.
 
 ---
 
