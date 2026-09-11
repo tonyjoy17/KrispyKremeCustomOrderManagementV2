@@ -124,6 +124,11 @@ import { FactoryDashboardData, Order } from '../../../models';
               </span>
             </div>
           </div>
+          <div class="pagination" *ngIf="totalPages > 1">
+            <button [disabled]="currentPage === 1 || loading" (click)="changePage(currentPage - 1)">Previous</button>
+            <span>Page {{ currentPage }} of {{ totalPages }}</span>
+            <button [disabled]="currentPage === totalPages || loading" (click)="changePage(currentPage + 1)">Next</button>
+          </div>
         </div>
 
         <!-- Quick Links -->
@@ -227,6 +232,10 @@ import { FactoryDashboardData, Order } from '../../../models';
     .status-select.status-ready { background: #ecfdf5; color: #059669; border-color: #a7f3d0; }
     .status-select.status-completed { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
     .status-select.status-cancelled { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+    .pagination { display:flex; align-items:center; justify-content:center; gap:16px; padding:16px; border-top:1px solid #f1f5f9; }
+    .pagination button { padding:8px 16px; border:1px solid #e2e8f0; border-radius:8px; background:white; cursor:pointer; font-family:inherit; font-size:13px; }
+    .pagination button:disabled { opacity:.5; cursor:not-allowed; }
+    .pagination span { font-size:13px; color:#64748b; }
 
     .quick-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
     .ql-card {
@@ -244,11 +253,20 @@ export class FactoryDashboardComponent implements OnInit {
   loading = true;
   today = new Date();
   tomorrow = new Date(Date.now() + 86400000);
+  currentPage = 1;
+  get totalPages() { return Math.max(1, Math.ceil((this.data?.stats.tomorrowPickups || 0) / 25)); }
 
   constructor(private ordersService: OrdersService) {}
 
   ngOnInit() {
-    this.ordersService.getFactoryDashboard().subscribe({
+    this.loadDashboard();
+  }
+
+  changePage(page: number) { this.currentPage = page; this.loadDashboard(); }
+
+  loadDashboard() {
+    this.loading = true;
+    this.ordersService.getFactoryDashboard(this.currentPage).subscribe({
       next: (data) => { this.data = data; this.loading = false; },
       error: () => { this.loading = false; }
     });

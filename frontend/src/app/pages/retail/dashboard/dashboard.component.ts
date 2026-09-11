@@ -83,15 +83,15 @@ import { RetailDashboardData, Order } from '../../../models';
               <span>Order #</span>
               <span>Customer</span>
               <span>Phone</span>
-              <span>Pickup Store</span>
+              <span>From Store</span>
               <span>Payment</span>
               <span>Status</span>
             </div>
             <div class="table-row" *ngFor="let order of data.todayOrders">
-              <span class="order-num">{{ order.order_number || order.orderNumber }}</span>
+              <a class="order-num" [routerLink]="['/retail/orders', order.id]">{{ order.order_number || order.orderNumber }}</a>
               <span class="customer-name">{{ order.customer_name || order.customerName }}</span>
               <span class="phone">{{ order.customer_phone || order.customerPhone }}</span>
-              <span class="store-tag">{{ order.pickup_store_name || order.pickupStoreName }}</span>
+              <span class="store-tag">{{ order.store_name || order.storeName }}</span>
               <span>
                 <span class="pill" [class.pill-green]="order.is_paid || order.isPaid" [class.pill-red]="!(order.is_paid || order.isPaid)">
                   {{ (order.is_paid || order.isPaid) ? 'Paid' : 'Unpaid' }}
@@ -101,6 +101,11 @@ import { RetailDashboardData, Order } from '../../../models';
                 <span class="status-badge status-{{ order.status }}">{{ order.status | titlecase }}</span>
               </span>
             </div>
+          </div>
+          <div class="pagination" *ngIf="totalPages > 1">
+            <button [disabled]="currentPage === 1 || loading" (click)="changePage(currentPage - 1)">Previous</button>
+            <span>Page {{ currentPage }} of {{ totalPages }}</span>
+            <button [disabled]="currentPage === totalPages || loading" (click)="changePage(currentPage + 1)">Next</button>
           </div>
         </div>
 
@@ -200,6 +205,10 @@ import { RetailDashboardData, Order } from '../../../models';
     .status-ready { background: #ecfdf5; color: #059669; }
     .status-completed { background: #f0fdf4; color: #16a34a; }
     .status-cancelled { background: #fef2f2; color: #dc2626; }
+    .pagination { display:flex; align-items:center; justify-content:center; gap:16px; padding:16px; border-top:1px solid #f1f5f9; }
+    .pagination button { padding:8px 16px; border:1px solid #e2e8f0; border-radius:8px; background:white; cursor:pointer; font-family:inherit; font-size:13px; }
+    .pagination button:disabled { opacity:.5; cursor:not-allowed; }
+    .pagination span { font-size:13px; color:#64748b; }
 
     .quick-links { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .ql-card {
@@ -216,11 +225,20 @@ export class RetailDashboardComponent implements OnInit {
   data: RetailDashboardData | null = null;
   loading = true;
   today = new Date();
+  currentPage = 1;
+  get totalPages() { return Math.max(1, Math.ceil((this.data?.stats.todayPickups || 0) / 25)); }
 
   constructor(private ordersService: OrdersService) {}
 
   ngOnInit() {
-    this.ordersService.getRetailDashboard().subscribe({
+    this.loadDashboard();
+  }
+
+  changePage(page: number) { this.currentPage = page; this.loadDashboard(); }
+
+  loadDashboard() {
+    this.loading = true;
+    this.ordersService.getRetailDashboard(this.currentPage).subscribe({
       next: (data) => { this.data = data; this.loading = false; },
       error: () => { this.loading = false; }
     });

@@ -141,7 +141,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
     { val: 'upcoming', label: 'Upcoming' },
     { val: 'past', label: 'Past' },
   ];
-  get totalPages() { return Math.ceil(this.total / 20); }
+  get totalPages() { return Math.ceil(this.total / 25); }
 
   constructor(private ordersService: OrdersService, private router: Router) {}
 

@@ -246,17 +246,18 @@ export class OrderDetailComponent implements OnInit {
 
   get isFactory() { return this.authService.isFactory; }
   get isAdmin() { return this.authService.isAdmin; }
+  get userStoreId() { return this.authService.currentUser?.storeId || (this.authService.currentUser as any)?.id; }
 
   get canEdit(): boolean {
     if (!this.order) return false;
-    if (this.isAdmin || this.isFactory) return false;
+    if (this.isAdmin || this.isFactory || this.order.store_id !== this.userStoreId) return false;
     const s = this.order.status;
     return s !== 'completed' && s !== 'cancelled';
   }
 
   get canMarkReceived(): boolean {
     if (!this.order) return false;
-    if (this.isFactory) return false;
+    if (this.isFactory || this.order.pickup_store_id !== this.userStoreId) return false;
     const s = this.order.status;
     return s === 'ready' && !this.order.customer_notified;
   }

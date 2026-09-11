@@ -224,7 +224,7 @@ export class FactoryOrdersComponent implements OnInit {
     { label: 'Past', value: 'past' },
   ];
 
-  get totalPages() { return Math.ceil(this.total / 20); }
+  get totalPages() { return Math.ceil(this.total / 25); }
 
   constructor(private ordersService: OrdersService, private storesService: StoresService, private router: Router) {}
 

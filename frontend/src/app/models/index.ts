@@ -74,11 +74,13 @@ export interface OrdersResponse { orders: Order[]; total: number; page: number; 
 export interface RetailDashboardData {
   stats: { todayPickups: number; upcoming: number; total: number; thisWeek: number; };
   todayOrders: Order[];
+  page?: number; limit?: number;
 }
 
 export interface FactoryDashboardData {
   stats: { tomorrowPickups: number; upcoming: number; total: number; thisWeek: number; };
   tomorrowOrders: Order[];
+  page?: number; limit?: number;
 }
 
 export interface RegisterStoreRequest {

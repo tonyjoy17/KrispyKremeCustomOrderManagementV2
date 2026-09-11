@@ -30,22 +30,22 @@ export class OrdersService {
   markOrderReceived(id: string): Observable<any> { return this.http.put(`${this.API}/${id}/received`, {}); }
   getOrderHistory(id: string): Observable<OrderHistory[]> { return this.http.get<OrderHistory[]>(`${this.API}/${id}/history`); }
 
-  getRetailDashboard(): Observable<RetailDashboardData> { return this.http.get<RetailDashboardData>(`${this.API}/retail/dashboard`); }
+  getRetailDashboard(page=1): Observable<RetailDashboardData> { return this.http.get<RetailDashboardData>(`${this.API}/retail/dashboard`, { params: { page, limit: 25 } }); }
 
   getRetailOrders(filter='all', page=1, search='', date=''): Observable<OrdersResponse> {
-    let params = new HttpParams().set('filter', filter).set('page', page).set('limit', 20);
+    let params = new HttpParams().set('filter', filter).set('page', page).set('limit', 25);
     if (search) params = params.set('search', search);
     if (date) params = params.set('date', date);
     return this.http.get<OrdersResponse>(`${this.API}/retail/orders`, { params });
   }
 
-  getFactoryDashboard(): Observable<FactoryDashboardData> { return this.http.get<FactoryDashboardData>(`${this.API}/factory/dashboard`); }
+  getFactoryDashboard(page=1): Observable<FactoryDashboardData> { return this.http.get<FactoryDashboardData>(`${this.API}/factory/dashboard`, { params: { page, limit: 25 } }); }
   getProductionSheet(date: string): Observable<{ date: string; orders: Order[]; totalOrders: number; totalDozen: number }> {
     return this.http.get<{ date: string; orders: Order[]; totalOrders: number; totalDozen: number }>(`${this.API}/factory/production-sheet`, { params: { date } });
   }
 
   getFactoryOrders(filter='all', page=1, storeId?: string, search='', date=''): Observable<OrdersResponse> {
-    let params = new HttpParams().set('filter', filter).set('page', page).set('limit', 20);
+    let params = new HttpParams().set('filter', filter).set('page', page).set('limit', 25);
     if (storeId) params = params.set('storeId', storeId);
     if (search) params = params.set('search', search);
     if (date) params = params.set('date', date);

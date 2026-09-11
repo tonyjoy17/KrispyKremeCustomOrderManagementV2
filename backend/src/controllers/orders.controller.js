@@ -27,7 +27,7 @@ const currentWeekStart = () => {
 };
 const pageValues = query => {
   const page = Math.max(parseInt(query.page || '1', 10), 1);
-  const limit = Math.min(Math.max(parseInt(query.limit || '20', 10), 1), 100);
+  const limit = Math.min(Math.max(parseInt(query.limit || '25', 10), 1), 100);
   return { page, limit, from: (page - 1) * limit, to: page * limit - 1 };
 };
 const logHistory = async (orderId, action, description, user) => {
@@ -156,7 +156,7 @@ const markOrderReceived = async (req, res) => {
     if (result.error) throw result.error;
     if (!result.data) return res.status(404).json({ message: 'Order not found' });
     const order = asDetailed(result.data);
-    if (!req.user.isFactory && !req.user.isAdmin && order.store_id !== req.user.storeId) return res.status(403).json({ message: 'Access denied' });
+    if (!req.user.isFactory && !req.user.isAdmin && order.pickup_store_id !== req.user.storeId) return res.status(403).json({ message: 'Only the pickup store can receive this order' });
     const update = await supabase.from('orders').update({ status: 'completed', customer_notified: true, customer_notified_at: new Date().toISOString() }).eq('id', req.params.id);
     if (update.error) throw update.error;
     await logHistory(req.params.id, 'received', 'Order marked as received — customer notification sent', req.user);
@@ -197,22 +197,24 @@ const getRetailDashboard = async (req, res) => {
   try {
     const storeId = req.user.storeId;
     const today = adelaideDate();
+    const paging = pageValues({ ...req.query, limit: 25 });
     const [todayPickups, upcoming, total, thisWeek] = await Promise.all([
-      countOrders(q => q.eq('store_id', storeId).eq('pickup_date', today).not('status', 'in', '(completed,cancelled)')),
+      countOrders(q => q.eq('pickup_store_id', storeId).eq('pickup_date', today).not('status', 'in', '(completed,cancelled)')),
       countOrders(q => q.eq('store_id', storeId).gt('pickup_date', today).not('status', 'in', '(completed,cancelled)')),
       countOrders(q => q.eq('store_id', storeId)),
       countOrders(q => q.eq('store_id', storeId).gte('created_at', currentWeekStart())),
     ]);
-    const result = await supabase.from('orders').select(ORDER_SELECT).eq('store_id', storeId).eq('pickup_date', today)
-      .not('status', 'in', '(completed,cancelled)').order('created_at');
+    const result = await supabase.from('orders').select(ORDER_SELECT).eq('pickup_store_id', storeId).eq('pickup_date', today)
+      .not('status', 'in', '(completed,cancelled)').order('created_at', { ascending: false }).range(paging.from, paging.to);
     if (result.error) throw result.error;
-    res.json({ stats: { todayPickups, upcoming, total, thisWeek }, todayOrders: result.data.map(asDetailed) });
+    res.json({ stats: { todayPickups, upcoming, total, thisWeek }, todayOrders: result.data.map(asDetailed), page: paging.page, limit: paging.limit });
   } catch (error) { console.error(error); res.status(500).json({ message: 'Failed to fetch dashboard' }); }
 };
 
-const getFactoryDashboard = async (_req, res) => {
+const getFactoryDashboard = async (req, res) => {
   try {
     const tomorrow = adelaideDate(1);
+    const paging = pageValues({ ...req.query, limit: 25 });
     const [tomorrowPickups, upcoming, total, thisWeek] = await Promise.all([
       countOrders(q => q.eq('pickup_date', tomorrow).not('status', 'in', '(completed,cancelled)')),
       countOrders(q => q.gt('pickup_date', tomorrow).not('status', 'in', '(completed,cancelled)')),
@@ -220,9 +222,9 @@ const getFactoryDashboard = async (_req, res) => {
       countOrders(q => q.gte('created_at', currentWeekStart())),
     ]);
     const result = await supabase.from('orders').select(ORDER_SELECT).eq('pickup_date', tomorrow)
-      .not('status', 'in', '(completed,cancelled)').order('pickup_store_id').order('created_at');
+      .not('status', 'in', '(completed,cancelled)').order('created_at', { ascending: false }).range(paging.from, paging.to);
     if (result.error) throw result.error;
-    res.json({ stats: { tomorrowPickups, upcoming, total, thisWeek }, tomorrowOrders: result.data.map(asDetailed) });
+    res.json({ stats: { tomorrowPickups, upcoming, total, thisWeek }, tomorrowOrders: result.data.map(asDetailed), page: paging.page, limit: paging.limit });
   } catch (error) { console.error(error); res.status(500).json({ message: 'Failed to fetch factory dashboard' }); }
 };
 
@@ -230,7 +232,7 @@ const getAllOrders = async (req, res) => {
   try {
     const paging = pageValues(req.query);
     let request = supabase.from('orders').select(ORDER_SELECT, { count: 'exact' })
-      .order('pickup_date').order('created_at', { ascending: false }).range(paging.from, paging.to);
+      .order('created_at', { ascending: false }).range(paging.from, paging.to);
     request = applyOrderFilters(request, req.query, true);
     const { data, error, count } = await request;
     if (error) throw error;
@@ -287,7 +289,7 @@ const getOrder = async (req, res) => {
     if (error) throw error;
     if (!data) return res.status(404).json({ message: 'Order not found' });
     const order = asDetailed(data);
-    if (!req.user.isFactory && !req.user.isAdmin && order.store_id !== req.user.storeId) return res.status(403).json({ message: 'Access denied' });
+    if (!req.user.isFactory && !req.user.isAdmin && order.store_id !== req.user.storeId && order.pickup_store_id !== req.user.storeId) return res.status(403).json({ message: 'Access denied' });
     if (order.reference_image_path) order.reference_image_path = await getSignedImageUrl(order.reference_image_path);
     res.json(order);
   } catch { res.status(500).json({ message: 'Failed to fetch order' }); }
