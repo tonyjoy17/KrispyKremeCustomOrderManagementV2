@@ -232,7 +232,10 @@ const getAllOrders = async (req, res) => {
   try {
     const paging = pageValues(req.query);
     let request = supabase.from('orders').select(ORDER_SELECT, { count: 'exact' })
-      .order('created_at', { ascending: false }).range(paging.from, paging.to);
+      .order('pickup_date', { ascending: true })
+      .order('pickup_time', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .range(paging.from, paging.to);
     request = applyOrderFilters(request, req.query, true);
     const { data, error, count } = await request;
     if (error) throw error;
